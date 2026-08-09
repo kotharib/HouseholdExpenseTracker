@@ -1,0 +1,151 @@
+"""Sample seed data for local development and demo purposes."""
+import random
+from datetime import date, timedelta
+
+from sqlmodel import Session, select
+
+from app.auth.security import hash_password
+from app.models.expense import Expense
+from app.models.milk import MilkDelivery
+from app.models.newspaper import NewspaperDelivery
+from app.models.servant import Servant
+from app.models.user import User
+
+CATEGORIES = [
+    "groceries", "utilities", "transport", "entertainment",
+    "health", "education", "household", "dining", "shopping",
+]
+
+SERVANTS = [
+    ("Lakshmi", "home cleaning", 3000.0),
+    ("Ravi", "utensil cleaning", 1500.0),
+    ("Arjun", "car cleaning", 800.0),
+    ("Meena", "cook", 5000.0),
+]
+
+NEWSPAPERS = [
+    ("The Times of India", 250.0),
+    ("The Hindu", 300.0),
+]
+
+MILK_SUPPLIERS = ["Aavin Dairy", "Heritage Fresh", "Amul Parishad"]
+
+
+def seed_users(session: Session) -> None:
+    existing = session.exec(select(User)).first()
+    if existing:
+        return
+    admin = User(
+        username="admin",
+        password_hash=hash_password("admin123"),
+        role="admin",
+    )
+    demo = User(
+        username="demo",
+        password_hash=hash_password("demo123"),
+        role="user",
+    )
+    session.add(admin)
+    session.add(demo)
+
+
+def seed_expenses(session: Session, months_back: int = 3) -> None:
+    existing = session.exec(select(Expense)).first()
+    if existing:
+        return
+    today = date.today()
+    rng = random.Random(42)
+    for back in range(months_back, -1, -1):
+        month_start = today.replace(day=1) - timedelta(days=back * 31)
+        # Generate between 8 and 14 expenses for that month
+        num = rng.randint(8, 14)
+        for _ in range(num):
+            day = rng.randint(1, 28)
+            cat = rng.choice(CATEGORIES)
+            amount = round(rng.uniform(20, 800), 2)
+            payment = rng.choice(["cash", "card", "upi"])
+            session.add(
+                Expense(
+                    category=cat,
+                    amount=amount,
+                    date=month_start.replace(day=day),
+                    notes=f"Sample {cat} expense",
+                    payment_mode=payment,
+                    tags=cat,
+                )
+            )
+    # Guarantee a grocery-heavy current month for interesting insights
+    current = today.replace(day=1)
+    for _ in range(6):
+        session.add(
+            Expense(
+                category="groceries",
+                amount=round(rng.uniform(150, 500), 2),
+                date=current + timedelta(days=rng.randint(0, today.day - 1)),
+                notes="Weekly grocery run",
+                payment_mode="upi",
+                tags="groceries,weekly",
+            )
+        )
+
+
+def seed_servants(session: Session) -> None:
+    existing = session.exec(select(Servant)).first()
+    if existing:
+        return
+    for name, role, salary in SERVANTS:
+        session.add(
+            Servant(
+                name=name,
+                role=role,
+                monthly_salary=salary,
+                payment_status="pending" if name != "Lakshmi" else "paid",
+                attendance_count=26,
+            )
+        )
+
+
+def seed_milk(session: Session) -> None:
+    existing = session.exec(select(MilkDelivery)).first()
+    if existing:
+        return
+    today = date.today()
+    current_month = today.strftime("%Y-%m")
+    for day in range(1, today.day + 1, 2):
+        supplier = MILK_SUPPLIERS[day % len(MILK_SUPPLIERS)]
+        session.add(
+            MilkDelivery(
+                supplier=supplier,
+                quantity=1.5,
+                rate=28.0,
+                date=date(today.year, today.month, min(day, today.day)),
+                month=current_month,
+                payment_status="pending",
+            )
+        )
+
+
+def seed_newspapers(session: Session) -> None:
+    existing = session.exec(select(NewspaperDelivery)).first()
+    if existing:
+        return
+    today = date.today()
+    current_month = today.strftime("%Y-%m")
+    for name, cost in NEWSPAPERS:
+        session.add(
+            NewspaperDelivery(
+                name=name,
+                monthly_cost=cost,
+                month=current_month,
+                payment_status="pending",
+            )
+        )
+
+
+def run_seed(session: Session) -> None:
+    seed_users(session)
+    seed_expenses(session)
+    seed_servants(session)
+    seed_milk(session)
+    seed_newspapers(session)
+    session.commit()

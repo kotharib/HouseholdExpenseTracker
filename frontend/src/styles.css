@@ -1,0 +1,28 @@
+body {
+  margin: 0;
+  font-family: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+
+pre.diagram {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  background-color: rgba(127, 127, 127, 0.08);
+  white-space: pre;
+}
+.chat-bubble {
+  max-width: 78%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
