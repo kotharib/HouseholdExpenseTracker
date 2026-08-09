@@ -8,6 +8,7 @@ import {
   Typography,
   Paper,
 } from '@mui/material'
+import { Savings as SavingsIcon } from '@mui/icons-material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, getErrorMessage } from '../api/client'
@@ -44,19 +45,79 @@ export default function AuthPage() {
   return (
     <Box
       sx={{
+        position: 'relative',
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         p: 2,
-        background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+        overflow: 'hidden',
+        background: 'linear-gradient(120deg, #4f46e5 0%, #7c3aed 45%, #0891b2 100%)',
+        backgroundSize: '200% 200%',
+        animation: 'gradientShift 12s ease infinite',
       }}
     >
-      <Card sx={{ width: '100%', maxWidth: 420 }}>
+      <Box
+        className="animate-float"
+        sx={{
+          position: 'absolute',
+          top: '12%',
+          left: '8%',
+          width: 220,
+          height: 220,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.08)',
+          filter: 'blur(6px)',
+        }}
+      />
+      <Box
+        className="animate-float"
+        sx={{
+          position: 'absolute',
+          bottom: '15%',
+          right: '10%',
+          width: 180,
+          height: 180,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.1)',
+          filter: 'blur(6px)',
+          animationDelay: '1.2s',
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '55%',
+          left: '55%',
+          width: 120,
+          height: 120,
+          borderRadius: 4,
+          background: 'rgba(255,255,255,0.06)',
+          transform: 'rotate(20deg)',
+        }}
+      />
+      <Card className="animate-fade-up" sx={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
         <CardContent sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom>
-            Household Finance Manager
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+            <Box
+              sx={{
+                width: 42,
+                height: 42,
+                borderRadius: 3,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                boxShadow: '0 6px 16px rgba(79,70,229,0.35)',
+              }}
+            >
+              <SavingsIcon fontSize="small" />
+            </Box>
+            <Typography variant="h5" fontWeight={800}>
+              Household Finance
+            </Typography>
+          </Box>
           <Typography variant="body2" color="text.secondary" mb={3}>
             Expense tracking, salaries, deliveries and an AI assistant.
           </Typography>

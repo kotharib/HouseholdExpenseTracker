@@ -1,13 +1,7 @@
-import { NavLink, useNavigate, Outlet } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { styled } from '@mui/material/styles'
-import { Article as ArticleIcon } from '@mui/icons-material'
-import { Chat as ChatIcon } from '@mui/icons-material'
-import { Dashboard as DashboardIcon } from '@mui/icons-material'
-import { Description as DescriptionIcon } from '@mui/icons-material'
-import { People as PeopleIcon } from '@mui/icons-material'
-import { Receipt as ReceiptIcon } from '@mui/icons-material'
-import { Settings as SettingsIcon } from '@mui/icons-material'
-import { WaterDrop as WaterDropIcon } from '@mui/icons-material'
+import { Article as ArticleIcon, Chat as ChatIcon, Dashboard as DashboardIcon, DarkMode as DarkModeIcon, Description as DescriptionIcon, LightMode as LightModeIcon, Logout as LogoutIcon, People as PeopleIcon, Receipt as ReceiptIcon, Settings as SettingsIcon, Savings as SavingsIcon, WaterDrop as WaterDropIcon } from '@mui/icons-material'
+import { IconButton, Stack, Tooltip } from '@mui/material'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import type { ComponentType } from 'react'
@@ -18,12 +12,13 @@ interface NavItem {
   icon: ComponentType<{ fontSize?: 'small' | 'inherit' | 'medium' | 'large' }>
 }
 
-const drawerWidth = 240
+const drawerWidth = 248
 
 const Main = styled('main')(({ theme }) => ({
   flexGrow: 1,
   minHeight: '100vh',
   backgroundColor: theme.palette.background.default,
+  backgroundImage: `radial-gradient(circle at 15% 0%, ${theme.palette.primary.main}14, transparent 40%), radial-gradient(circle at 95% 10%, ${theme.palette.secondary.main}14, transparent 35%)`,
   padding: theme.spacing(3),
   marginLeft: drawerWidth,
   [theme.breakpoints.down('md')]: {
@@ -43,33 +38,82 @@ const Sidebar = styled('nav')(({ theme }) => ({
   borderRight: `1px solid ${theme.palette.divider}`,
   paddingTop: theme.spacing(2),
   overflowY: 'auto',
+  zIndex: 20,
   [theme.breakpoints.down('md')]: {
     display: 'none',
   },
 }))
 
 const Brand = styled('div')(({ theme }) => ({
-  padding: theme.spacing(2, 3),
-  fontWeight: 700,
-  fontSize: 18,
-  color: theme.palette.primary.main,
-}))
-
-const StyledLink = styled(NavLink)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing(1.5),
-  padding: theme.spacing(1.2, 3),
+  padding: theme.spacing(1.5, 3),
+  marginBottom: theme.spacing(2),
+}))
+
+const BrandBadge = styled('div')(({ theme }) => ({
+  width: 40,
+  height: 40,
+  borderRadius: 12,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#fff',
+  background: theme.palette.mode === 'light'
+    ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
+    : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+  boxShadow: theme.palette.mode === 'light'
+    ? '0 6px 16px rgba(79,70,229,0.35)'
+    : '0 6px 16px rgba(99,102,241,0.4)',
+  animation: 'floaty 5s ease-in-out infinite',
+}))
+
+const BrandText = styled('div')(({ theme }) => ({
+  fontWeight: 800,
+  fontSize: 17,
+  letterSpacing: '-0.01em',
+  background: theme.palette.mode === 'light'
+    ? 'linear-gradient(90deg, #4f46e5, #7c3aed)'
+    : 'linear-gradient(90deg, #a5b4fc, #67e8f9)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+}))
+
+const StyledLink = styled(NavLink)(({ theme }) => ({
+  position: 'relative',
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1.5),
+  margin: theme.spacing(0.4, 1.5),
+  padding: theme.spacing(1.1, 1.5),
+  borderRadius: 10,
   color: theme.palette.text.secondary,
   textDecoration: 'none',
   fontSize: 14,
-  '&.active': {
-    color: theme.palette.primary.main,
-    backgroundColor: theme.palette.mode === 'light' ? 'rgba(37,99,235,0.08)' : 'rgba(144,202,249,0.12)',
-    fontWeight: 600,
+  transition: 'all 0.18s ease',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    left: 0,
+    top: '50%',
+    transform: 'translateY(-50%) scaleY(0)',
+    width: 3,
+    height: '60%',
+    borderRadius: 4,
+    background: theme.palette.primary.main,
+    transition: 'transform 0.2s ease',
   },
   '&:hover': {
-    backgroundColor: theme.palette.action.hover,
+    backgroundColor: theme.palette.mode === 'light' ? 'rgba(79,70,229,0.06)' : 'rgba(148,163,184,0.08)',
+    color: theme.palette.text.primary,
+    transform: 'translateX(3px)',
+  },
+  '&.active': {
+    color: theme.palette.primary.main,
+    backgroundColor: theme.palette.mode === 'light' ? 'rgba(79,70,229,0.1)' : 'rgba(129,140,248,0.14)',
+    fontWeight: 600,
+    '&::before': { transform: 'translateY(-50%) scaleY(1)' },
   },
 }))
 
@@ -82,8 +126,10 @@ const TopBar = styled('header')(({ theme }) => ({
   justifyContent: 'space-between',
   padding: theme.spacing(1.5, 3),
   marginBottom: theme.spacing(3),
+  borderRadius: 12,
   backgroundColor: theme.palette.background.paper,
-  borderBottom: `1px solid ${theme.palette.divider}`,
+  border: `1px solid ${theme.palette.divider}`,
+  boxShadow: theme.palette.mode === 'light' ? '0 4px 16px rgba(15,23,42,0.06)' : '0 4px 16px rgba(0,0,0,0.4)',
 }))
 
 export default function Layout() {
@@ -92,6 +138,7 @@ export default function Layout() {
   const mode = useThemeStore((s) => s.mode)
   const toggle = useThemeStore((s) => s.toggle)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const items: NavItem[] = [
     { label: 'Dashboard', path: '/', icon: DashboardIcon },
@@ -107,7 +154,12 @@ export default function Layout() {
   return (
     <div style={{ display: 'flex' }}>
       <Sidebar>
-        <Brand>Household Finance</Brand>
+        <Brand>
+          <BrandBadge>
+            <SavingsIcon fontSize="small" />
+          </BrandBadge>
+          <BrandText>Household Finance</BrandText>
+        </Brand>
         {items.map((item) => {
           const Icon = item.icon
           return (
@@ -123,25 +175,28 @@ export default function Layout() {
           <div style={{ fontSize: 14, color: 'text.secondary' }}>
             Welcome, <strong>{user?.username}</strong> ({user?.role})
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              onClick={toggle}
-              style={{ border: '1px solid', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', background: 'transparent' }}
-            >
-              {mode === 'light' ? 'Dark' : 'Light'}
-            </button>
-            <button
-              onClick={() => {
-                logout()
-                navigate('/login')
-              }}
-              style={{ border: '1px solid', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', background: 'transparent' }}
-            >
-              Logout
-            </button>
-          </div>
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
+              <IconButton onClick={toggle} size="small">
+                {mode === 'light' ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Logout">
+              <IconButton
+                onClick={() => {
+                  logout()
+                  navigate('/login')
+                }}
+                size="small"
+              >
+                <LogoutIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </TopBar>
-        <Outlet />
+        <div className="page-enter" key={location.pathname}>
+          <Outlet />
+        </div>
       </Main>
     </div>
   )

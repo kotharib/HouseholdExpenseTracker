@@ -93,19 +93,30 @@ export default function ChatUI() {
           {messages.map((m, i) => (
             <Box
               key={i}
+              className="animate-fade-up"
               sx={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}
             >
               <Paper
                 className="chat-bubble"
                 sx={{
                   p: 1.5,
-                  backgroundColor: m.role === 'user' ? theme.palette.primary.main : theme.palette.background.default,
+                  background:
+                    m.role === 'user'
+                      ? theme.palette.mode === 'light'
+                        ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
+                        : 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                      : theme.palette.background.default,
                   color: m.role === 'user' ? '#fff' : theme.palette.text.primary,
+                  boxShadow: m.role === 'user' ? '0 6px 14px rgba(79,70,229,0.3)' : undefined,
                 }}
               >
                 {m.content}
                 {m.role === 'assistant' && streaming && i === messages.length - 1 && (
-                  <span style={{ opacity: 0.6 }}>▋</span>
+                  <span className="typing-indicator" style={{ color: 'inherit' }}>
+                    <span />
+                    <span />
+                    <span />
+                  </span>
                 )}
               </Paper>
             </Box>
