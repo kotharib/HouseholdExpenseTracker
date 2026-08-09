@@ -12,10 +12,12 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
-import { Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Edit as EditIcon } from '@mui/icons-material'
+import { Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Edit as EditIcon, FilterAltOff as FilterAltOffIcon } from '@mui/icons-material'
 import { useState } from 'react'
 import type { Newspaper } from '../types'
 import { formatMoney } from '../utils/format'
+import { useTableControls } from '../utils/useTableControls'
+import { FilterCell, SortableHeader } from './TableControls'
 
 interface Props {
   papers: Newspaper[]
@@ -27,11 +29,13 @@ interface Props {
 
 export default function NewspaperList({ papers, onEdit, onDelete, onBulkDelete, onDeleteAll }: Props) {
   const [selected, setSelected] = useState<number[]>([])
-  const allSelected = papers.length > 0 && selected.length === papers.length
+  const { sortColumn, sortDirection, filters, sortedAndFiltered, handleSort, handleFilter, clearFilters, hasActiveFilter } =
+    useTableControls<Newspaper>(papers)
+  const allSelected = sortedAndFiltered.length > 0 && selected.length === sortedAndFiltered.length
 
   const toggle = (id: number) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  const toggleAll = () => setSelected(allSelected ? [] : papers.map((p) => p.id))
+  const toggleAll = () => setSelected(allSelected ? [] : sortedAndFiltered.map((p) => p.id))
 
   if (papers.length === 0) {
     return (
@@ -41,13 +45,30 @@ export default function NewspaperList({ papers, onEdit, onDelete, onBulkDelete, 
     )
   }
 
+  if (sortedAndFiltered.length === 0) {
+    return (
+      <Stack alignItems="center" spacing={1} sx={{ py: 4 }}>
+        <Typography color="text.secondary">No newspaper subscriptions match the current filters.</Typography>
+        <Button size="small" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>
+          Clear filters
+        </Button>
+      </Stack>
+    )
+  }
+
   return (
     <>
       <Stack direction="row" spacing={1} sx={{ mb: 1 }} justifyContent="space-between">
         <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
-          {selected.length > 0 ? `${selected.length} selected` : `${papers.length} records`}
+          {selected.length > 0 ? `${selected.length} selected` : `${sortedAndFiltered.length} records`}
+          {hasActiveFilter && ` (of ${papers.length})`}
         </Typography>
         <Stack direction="row" spacing={1}>
+          {hasActiveFilter && (
+            <Button size="small" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>
+              Clear
+            </Button>
+          )}
           <Button
             size="small"
             color="error"
@@ -84,15 +105,31 @@ export default function NewspaperList({ papers, onEdit, onDelete, onBulkDelete, 
               <TableCell padding="checkbox">
                 <Checkbox size="small" checked={allSelected} onChange={toggleAll} inputProps={{ 'aria-label': 'select all' }} />
               </TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Month</TableCell>
-              <TableCell align="right">Monthly Cost</TableCell>
-              <TableCell>Status</TableCell>
+              <SortableHeader active={sortColumn === 'name'} direction={sortDirection} onClick={() => handleSort('name')}>
+                Name
+              </SortableHeader>
+              <SortableHeader active={sortColumn === 'month'} direction={sortDirection} onClick={() => handleSort('month')}>
+                Month
+              </SortableHeader>
+              <SortableHeader align="right" active={sortColumn === 'monthly_cost'} direction={sortDirection} onClick={() => handleSort('monthly_cost')}>
+                Monthly Cost
+              </SortableHeader>
+              <SortableHeader active={sortColumn === 'payment_status'} direction={sortDirection} onClick={() => handleSort('payment_status')}>
+                Status
+              </SortableHeader>
               <TableCell align="right">Actions</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell padding="checkbox" />
+              <FilterCell value={filters.name ?? ''} onChange={(v) => handleFilter('name', v)} placeholder="Name" />
+              <FilterCell value={filters.month ?? ''} onChange={(v) => handleFilter('month', v)} placeholder="Month" />
+              <FilterCell align="right" value={filters.monthly_cost ?? ''} onChange={(v) => handleFilter('monthly_cost', v)} placeholder="Cost" />
+              <FilterCell value={filters.payment_status ?? ''} onChange={(v) => handleFilter('payment_status', v)} placeholder="Status" />
+              <TableCell align="right" />
             </TableRow>
           </TableHead>
           <TableBody>
-            {papers.map((p) => (
+            {sortedAndFiltered.map((p) => (
               <TableRow key={p.id} hover selected={selected.includes(p.id)}>
                 <TableCell padding="checkbox">
                   <Checkbox size="small" checked={selected.includes(p.id)} onChange={() => toggle(p.id)} inputProps={{ 'aria-label': 'select' }} />
