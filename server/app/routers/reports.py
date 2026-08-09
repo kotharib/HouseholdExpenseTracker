@@ -95,6 +95,10 @@ async def auto_report(
             "total_expenses": round(data["current_month_total"], 2),
             "pending": round(data["pending"]["total"], 2),
         },
+        expense_count=data["expense_count"],
+        previous_month_total=round(data["previous_month_total"], 2),
+        delta=round(data["delta"], 2),
+        category_totals=data["category_totals"],
         generated_at=date.today().isoformat(),
     )
 

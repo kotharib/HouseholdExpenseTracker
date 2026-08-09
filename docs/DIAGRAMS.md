@@ -1,5 +1,8 @@
 # System Diagrams
 
+> **Docs index:** [README](../README.md) · [ARCHITECTURE](ARCHITECTURE.md) ·
+> [AI_GUIDE](AI_GUIDE.md) · [IMPLEMENTATION](IMPLEMENTATION.md) · this file
+
 The diagrams for this application are documented here as Mermaid diagrams so they can be
 rendered directly by GitHub, GitLab, VS Code, or any Mermaid-compatible viewer. There is no
 diagram page in the UI; use the code below as living documentation.

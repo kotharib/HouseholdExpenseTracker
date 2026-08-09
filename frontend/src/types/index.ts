@@ -141,6 +141,10 @@ export interface AutoReport {
     total_expenses: number
     pending: number
   }
+  expense_count: number
+  previous_month_total: number
+  delta: number
+  category_totals: CategoryTotal[]
   generated_at: string
 }
 

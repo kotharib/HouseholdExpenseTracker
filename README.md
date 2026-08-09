@@ -1,75 +1,141 @@
 # Household Finance Manager
 
-A full-stack **household management & expense tracking** application with an **AI agent** powered by a
-local LLM (Llama 3 via Ollama), monthly financial PDFs, auto-reports and diagram generation.
+A full-stack **household management & expense tracking** application with an **AI assistant**,
+monthly financial PDFs, auto-reports and system diagrams — all amounts in **Indian Rupees (₹)**.
 
-- **Frontend**: React 18 + TypeScript + Vite + Material UI + Zustand + Recharts + Axios
-- **Backend**: FastAPI + SQLModel (SQLAlchemy) + SQLite + Alembic + JWT auth
-- **AI**: LangChain (`SQLDatabaseToolkit`, `ConversationBufferMemory`) + `langchain-ollama` (Llama 3), with a deterministic fallback engine when Ollama is offline
-- **Reports**: ReportLab PDF with charts + tables + AI text
-- **Diagrams**: dependency-free ASCII + SVG generators
+This README is written so that even someone new to software development or AI can understand
+**what the app does**, **how it is built**, and **how to run it**. Deeper guides live in `docs/`.
+
+- **Beginner-friendly architecture**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **How the AI works (LLM explained)**: [docs/AI_GUIDE.md](docs/AI_GUIDE.md)
+- **Feature-by-feature implementation**: [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)
+- **System diagrams (Mermaid)**: [docs/DIAGRAMS.md](docs/DIAGRAMS.md)
 
 ---
+
+## Table of contents
+
+1. [What does this app do?](#what-does-this-app-do)
+2. [Tech stack](#tech-stack)
+3. [Features](#features)
+4. [Architecture in one picture](#architecture-in-one-picture)
+5. [Folder structure](#folder-structure)
+6. [Run it yourself](#run-it-yourself)
+7. [How the AI assistant works (quick version)](#how-the-ai-assistant-works-quick-version)
+8. [API documentation](#api-documentation)
+9. [Database schema](#database-schema)
+10. [Validation performed](#validation-performed)
+
+---
+
+## What does this app do?
+
+It is a personal finance tracker for a household. You can record everyday expenses, track
+servant salaries, milk deliveries and newspaper subscriptions — then ask an **AI assistant**
+questions about your money, get monthly summaries, and download a **PDF report**.
+
+Think of it as a spreadsheet that can *talk to you*.
+
+## Tech stack
+
+| Layer     | Technology                                                             | Why it is used                        |
+|-----------|------------------------------------------------------------------------|---------------------------------------|
+| Frontend  | React 18 + TypeScript + Vite + Material UI + Zustand + Recharts + Axios | Interactive, modern browser app       |
+| Backend   | FastAPI + SQLModel (SQLAlchemy) + SQLite + Alembic + JWT auth           | Simple Python API with a file database|
+| AI        | LangChain + local Llama 3 (Ollama), with a deterministic fallback engine| Ask questions in plain English        |
+| Reports   | ReportLab (PDF), Recharts (charts)                                     | Monthly PDF + interactive charts      |
+
+> **No cloud AI required.** The AI model runs locally through [Ollama](https://ollama.com),
+> so you need no API keys. If Ollama is not installed, the app still works using a built-in
+> "fallback engine" that answers from the database directly.
 
 ## Features
 
 - Daily expense tracking (category / amount / date / payment mode / tags)
-- Servant salary tracking (home cleaning, utensil cleaning, car cleaning, cook, custom roles)
+- Servant salary tracking (cook, cleaning, driver and custom roles)
 - Milk delivery tracking (supplier, quantity, rate, month)
 - Newspaper subscription tracking
-- Bulk delete (multiple selected records or everything) on every list page
-- Monthly summaries + dashboard with charts (trend bar chart, category pie chart)
+- **Filter and sort** on every column of every list
+- **Bulk delete** (delete selected rows, or delete everything) on every list
+- Dashboard with animated metric cards and charts (trend bar + category pie)
 - AI chat that reads the SQLite database and answers financial questions
 - Financial insights: overspending detection, category analysis, savings suggestions
-- Auto-report generator and monthly financial PDF
-- Architecture / ER / AI-workflow diagrams documented as Mermaid diagrams in `docs/DIAGRAMS.md`
+- Auto-report generator and a downloadable monthly PDF
+- Column filtering/sorting, dark mode, and polished animations
 - All amounts in **Indian Rupees (₹)** with Indian digit grouping
-- JWT auth (register/login), admin/user roles
-- Dark mode toggle
+- JWT authentication (register/login) with admin/user roles
+- System diagrams documented as Mermaid in `docs/DIAGRAMS.md`
 
----
+## Architecture in one picture
+
+```
+Browser (React app)
+      │  every /api/* request is proxied to the backend by Vite
+      ▼
+FastAPI backend  ──────────►  SQLite database (one file: household.db)
+      │
+      ├── JWT auth (login/register)
+      ├── REST endpoints (expenses, servants, milk, newspaper, dashboard)
+      └── AI agent (LangChain + Ollama llama3, or fallback engine)
+```
+
+A request (for example "How much did I spend this month?") flows like this:
+
+1. The **frontend** sends the question to `/api/ai/chat`.
+2. The **backend** agent asks the **AI model** what to do; the model chooses tools.
+3. A tool **queries the database** (SQL) and returns numbers.
+4. The AI model turns the numbers into a friendly sentence.
+5. The answer streams back to the browser **token by token** (like ChatGPT).
+
+Detailed diagrams: [docs/DIAGRAMS.md](docs/DIAGRAMS.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Folder structure
 
 ```
 .
-├── start.sh                  # Runs backend + frontend together
-├── server/                   # FastAPI backend
+├── start.sh                  # Starts backend + frontend together
+├── docs/                     # Beginner-friendly documentation + Mermaid diagrams
+├── server/                   # FastAPI backend (Python)
 │   ├── app/
-│   │   ├── main.py           # App factory, CORS, routers, lifespan (seed)
-│   │   ├── config.py         # Settings from env vars
-│   │   ├── database.py       # Engine, session, init_db
+│   │   ├── main.py           # App factory, CORS, routers, startup seeding
+│   │   ├── config.py         # Settings from environment variables
+│   │   ├── database.py       # Database engine, sessions, init_db
 │   │   ├── models/           # SQLModel tables (users, expenses, servants, milk, newspaper)
-│   │   ├── schemas/          # Pydantic request/response models
+│   │   ├── schemas/          # Pydantic request/response models (data shapes)
 │   │   ├── routers/          # auth, expenses, servants, milk, newspaper, dashboard, ai, reports, diagrams
 │   │   ├── services/         # insights (financial math), seed (sample data)
 │   │   ├── auth/             # password hashing + JWT + dependencies
-│   │   ├── ai/               # agent.py (LangChain + fallback), tools.py (custom LangChain tools)
+│   │   ├── ai/               # agent.py (LangChain + fallback), tools.py (custom tools)
 │   │   ├── reports/          # pdf.py (ReportLab generator)
 │   │   ├── diagrams/         # generators.py (ASCII + SVG)
-│   │   └── utils/            # helpers (month math, formatting)
-│   ├── migrations/           # Alembic env + version 0001_init.py
+│   │   └── utils/            # helpers (month math, INR formatting)
+│   ├── migrations/           # Alembic database migrations
 │   ├── alembic.ini
 │   ├── requirements.txt
-│   └── seed_run.py           # explicit seed runner
-└── frontend/                 # React + TS + Vite
+│   └── seed_run.py           # Explicit seed runner
+└── frontend/                 # React + TypeScript + Vite
     ├── vite.config.ts        # /api reverse proxy -> http://localhost:8000
     └── src/
         ├── api/client.ts     # Axios instance + auth interceptor
         ├── store/            # Zustand stores (auth, theme)
-        ├── components/       # ExpenseForm/List, ServantForm/List, MilkForm/List,
-        │                     # NewspaperForm/List, DashboardCharts, ChatUI, ReportViewer
-        ├── utils/            # format.ts (INR formatting)
-        └── pages/            # Auth, Dashboard, Expenses, Servants, Milk, Newspaper,
-                              # Chat, Reports, Settings
+        ├── components/       # Forms/Lists, DashboardCharts, ChatUI, ReportViewer, TableControls
+        ├── utils/            # format.ts (INR), useTableControls, useCountUp
+        └── pages/            # Auth, Dashboard, Expenses, Servants, Milk, Newspaper, Chat, Reports, Settings
 ```
 
-> Diagrams (architecture, ER, AI workflow) live as Mermaid docs in `docs/DIAGRAMS.md`.
-> They are intentionally not rendered in the UI.
+## Run it yourself
 
----
+### Option A: one command (recommended)
 
-## 1. Backend setup (FastAPI + SQLite)
+```bash
+./start.sh
+```
+
+This starts the backend on `:8000` and the frontend on `:5173`.
+
+### Option B: run each part manually
+
+**Backend**
 
 ```bash
 cd server
@@ -77,22 +143,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# (optional) run migrations explicitly
-# alembic upgrade head
-
-# start the API on http://localhost:8000  (Swagger docs at /docs)
+# Start the API on http://localhost:8000 (Swagger docs at /docs)
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-The app seeds a SQLite database at `server/data/household.db` on startup with sample data.
+The app creates and seeds a SQLite database at `server/data/household.db` on startup.
 
-**Default accounts**
-| Username | Password | Role  |
-|----------|----------|-------|
-| admin    | admin123 | admin |
-| demo     | demo123  | user  |
-
-## 2. Frontend setup (React + TypeScript + Vite)
+**Frontend**
 
 ```bash
 cd frontend
@@ -100,85 +157,72 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-`vite.config.ts` proxies every `/api/*` request to the backend on `:8000` (the `/api` prefix is
-stripped), so there are **no CORS issues in development**. `allowedHosts` includes
-`.monkeycode-ai.live` for preview environments.
+`vite.config.ts` proxies every `/api/*` request to the backend on `:8000`, so there are
+**no CORS issues in development**. `allowedHosts` includes `.monkeycode-ai.live` for preview
+environments.
 
-Build & checks:
+**Build & checks**
 
 ```bash
-npm run build      # tsc + vite build
+cd frontend
+npm run build      # tsc + vite build (production bundle)
 npm run lint       # eslint --ext ts,tsx --max-warnings 0
 ```
 
-## 3. Run both together
+**Default accounts**
 
-```bash
-./start.sh
-```
+| Username | Password | Role  |
+|----------|----------|-------|
+| admin    | admin123 | admin |
+| demo     | demo123  | user  |
 
-## 4. Local LLM (Ollama + Llama 3)
+## How the AI assistant works (quick version)
 
-The AI agent uses a **local** model via Ollama — no API keys needed.
+The AI assistant is powered by a **local** Large Language Model (LLM) running via Ollama:
 
-1. **Install Ollama** (Linux/macOS):
+1. **Install Ollama** and pull the model:
 
    ```bash
    curl -fsSL https://ollama.com/install.sh | sh
-   ```
-
-2. **Pull Llama 3**:
-
-   ```bash
    ollama pull llama3
    ```
 
-3. **Verify**:
-
-   ```bash
-   ollama run llama3 "hello"
-   ```
-
-4. **Configure the app** (env vars, defaults shown):
+2. **Configure the backend** (defaults shown):
 
    ```bash
    export OLLAMA_BASE_URL=http://localhost:11434
    export OLLAMA_MODEL=llama3
    ```
 
-5. Restart the backend. `GET /health` reports `"llm_available": true` when connected.
+3. Restart the backend. `GET /health` reports `"llm_available": true` when connected.
 
-> **Fallback mode:** if Ollama is unreachable, the agent automatically switches to a deterministic
-> engine that queries the same data, so every feature (chat, insights, reports, PDF) keeps working.
+**No LLM? No problem.** If Ollama is unreachable, the app switches to a **deterministic
+fallback engine** that answers from the database directly, so every feature (chat, insights,
+reports, PDF) keeps working.
 
-## 5. How the AI agent works
+- `app/ai/agent.py` builds the LangChain agent and the fallback engine.
+- `app/ai/tools.py` defines the tools the model can call (SQL query, insights, summaries).
+- `/ai/chat` streams answers as SSE tokens; `/ai/insights` and `/ai/report/monthly` return JSON.
 
-1. `app/ai/agent.py` builds a LangChain agent with `create_sql_agent` + `ChatOllama`,
-   `SQLDatabaseToolkit` and **custom tools** (`app/ai/tools.py`):
-   - `sql_query_tool` — read-only SQL against SQLite
-   - `financial_insights` — totals, category analysis, pending payments, savings hints
-   - `generate_monthly_summary` — natural-language monthly summaries
-   - `generate_pdf_ready_text` — PDF-ready text blocks
-2. Memory uses `ConversationBufferMemory(memory_key="chat_history")`.
-3. `/ai/chat` streams the answer back as **SSE** tokens; `/ai/insights` and `/ai/report/monthly`
-   return JSON.
+Read the full beginner guide: [docs/AI_GUIDE.md](docs/AI_GUIDE.md).
 
 ### Example questions for the AI agent
 
-- “How much did I spend last month?”
-- “Which servant salary is pending?”
-- “Summarize my milk expenses for July.”
-- “What is my top spending category this month?”
-- “Give me financial insights and savings suggestions.”
-- “Generate a monthly report for 2026-08.”
-
----
+- "How much did I spend last month?"
+- "Which servant salary is pending?"
+- "Summarize my milk expenses for July."
+- "What is my top spending category this month?"
+- "Give me financial insights and savings suggestions."
+- "Generate a monthly report for 2026-08."
 
 ## API documentation
 
 Interactive docs at `http://localhost:8000/docs`.
 
+All data endpoints require `Authorization: Bearer <token>`.
+
 ### Auth
+
 | Method | Endpoint            | Body                                   |
 |--------|---------------------|----------------------------------------|
 | POST   | `/auth/register`    | `{username, password, role?}`          |
@@ -186,42 +230,47 @@ Interactive docs at `http://localhost:8000/docs`.
 | GET    | `/auth/me`          | — (Bearer token)                       |
 
 ### Expenses
-| Method | Endpoint         | Notes                                   |
-|--------|------------------|-----------------------------------------|
-| GET    | `/expenses`      | query: `month=YYYY-MM`, `category`      |
-| POST   | `/expenses`      | `{category, amount, date, notes?, payment_mode?, tags?}` |
-| PUT    | `/expenses/{id}` | partial update                          |
-| DELETE | `/expenses/{id}` | —                                       |
-| POST   | `/expenses/bulk-delete` | body `{"ids": [..]}` or `{"all": true}` |
+
+| Method | Endpoint                | Notes                                            |
+|--------|-------------------------|--------------------------------------------------|
+| GET    | `/expenses`             | query: `month=YYYY-MM`, `category`               |
+| POST   | `/expenses`             | `{category, amount, date, notes?, payment_mode?, tags?}` |
+| PUT    | `/expenses/{id}`        | partial update                                  |
+| DELETE | `/expenses/{id}`        | —                                               |
+| POST   | `/expenses/bulk-delete` | body `{"ids": [..]}` or `{"all": true}`         |
 
 ### Servants
-| Method | Endpoint         | Notes |
-|--------|------------------|-------|
-| GET    | `/servants`      | query: `role`, `payment_status` |
-| POST   | `/servants`      | `{name, role, monthly_salary, payment_status?, attendance_count?}` |
-| PUT    | `/servants/{id}` | partial update |
-| DELETE | `/servants/{id}` | — |
+
+| Method | Endpoint                | Notes |
+|--------|-------------------------|-------|
+| GET    | `/servants`             | query: `role`, `payment_status` |
+| POST   | `/servants`             | `{name, role, monthly_salary, payment_status?, attendance_count?}` |
+| PUT    | `/servants/{id}`        | partial update |
+| DELETE | `/servants/{id}`        | — |
 | POST   | `/servants/bulk-delete` | body `{"ids": [..]}` or `{"all": true}` |
 
 ### Milk
-| Method | Endpoint    | Notes |
-|--------|-------------|-------|
-| GET    | `/milk`     | query: `month`, `supplier`, `payment_status` |
-| POST   | `/milk`     | `{supplier, quantity, rate, date, month, payment_status?}` |
-| PUT    | `/milk/{id}` | partial update |
-| DELETE | `/milk/{id}` | — |
+
+| Method | Endpoint         | Notes |
+|--------|------------------|-------|
+| GET    | `/milk`          | query: `month`, `supplier`, `payment_status` |
+| POST   | `/milk`          | `{supplier, quantity, rate, date, month, payment_status?}` |
+| PUT    | `/milk/{id}`     | partial update |
+| DELETE | `/milk/{id}`     | — |
 | POST   | `/milk/bulk-delete` | body `{"ids": [..]}` or `{"all": true}` |
 
 ### Newspaper
-| Method | Endpoint    | Notes |
-|--------|-------------|-------|
-| GET    | `/newspaper` | query: `month`, `payment_status` |
-| POST   | `/newspaper` | `{name, monthly_cost, month, payment_status?}` |
-| PUT    | `/newspaper/{id}` | partial update |
-| DELETE | `/newspaper/{id}` | — |
-| POST   | `/newspaper/bulk-delete` | body `{"ids": [..]}` or `{"all": true}` |
+
+| Method | Endpoint                  | Notes |
+|--------|---------------------------|-------|
+| GET    | `/newspaper`              | query: `month`, `payment_status` |
+| POST   | `/newspaper`              | `{name, monthly_cost, month, payment_status?}` |
+| PUT    | `/newspaper/{id}`         | partial update |
+| DELETE | `/newspaper/{id}`         | — |
+| POST   | `/newspaper/bulk-delete`  | body `{"ids": [..]}` or `{"all": true}` |
 
 ### Dashboard
+
 | Method | Endpoint                     | Notes |
 |--------|------------------------------|-------|
 | GET    | `/dashboard/summary`         | totals, category totals, monthly trend, pending payments |
@@ -229,6 +278,7 @@ Interactive docs at `http://localhost:8000/docs`.
 | GET    | `/dashboard/pending-payments`| grouped pending list + total |
 
 ### AI
+
 | Method | Endpoint                 | Notes |
 |--------|--------------------------|-------|
 | POST   | `/ai/chat`               | SSE streaming response |
@@ -236,24 +286,22 @@ Interactive docs at `http://localhost:8000/docs`.
 | GET    | `/ai/report/monthly`     | `?month=YYYY-MM` → AI summary text |
 
 ### Reports
+
 | Method | Endpoint                 | Notes |
 |--------|--------------------------|-------|
 | GET    | `/reports/monthly/pdf`   | `?month=YYYY-MM` → ReportLab PDF attachment |
 | GET    | `/reports/auto`          | `?month=YYYY-MM` → structured auto-report |
 
 ### Diagrams (API only)
-The backend still exposes ASCII/SVG diagram endpoints for scripting. The diagrams are
-**documented as Mermaid diagrams** in `docs/DIAGRAMS.md` and are not rendered in the UI.
+
+The backend exposes ASCII/SVG diagram endpoints for scripting, but the diagrams are
+**documented as Mermaid** in `docs/DIAGRAMS.md` and are not rendered in the UI.
 
 | Method | Endpoint                       | Notes |
 |--------|--------------------------------|-------|
 | GET    | `/diagrams/architecture`       | `?format=ascii\|svg` |
 | GET    | `/diagrams/er`                 | `?format=ascii\|svg` |
 | GET    | `/diagrams/ai-workflow`        | `?format=ascii\|svg` |
-
-All data endpoints require `Authorization: Bearer <token>`.
-
----
 
 ## Database schema
 
