@@ -33,7 +33,6 @@ export default function NewspaperPage() {
 
   useEffect(() => {
     load(month)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month])
 
   const submit = async (data: NewspaperInput, id?: number) => {

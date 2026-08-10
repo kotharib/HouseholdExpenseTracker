@@ -74,11 +74,22 @@ erDiagram
         string month
         string payment_status
     }
+    investments {
+        int id PK
+        string scheme_name
+        string category
+        float amount
+        date date
+        string month
+        float expected_return
+        string notes
+    }
 
     users ||--o{ expenses : "tracks"
     users ||--o{ servants : "tracks"
     users ||--o{ milk_deliveries : "tracks"
     users ||--o{ newspaper_deliveries : "tracks"
+    users ||--o{ investments : "tracks"
 ```
 
 Notes:

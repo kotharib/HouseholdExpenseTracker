@@ -62,7 +62,7 @@ class Expense(SQLModel, table=True):
 ### Read it
 
 - Table definitions → `models/expense.py`, `models/servant.py`, `models/milk.py`,
-  `models/newspaper.py`, `models/user.py`
+  `models/newspaper.py`, `models/investment.py`, `models/user.py`
 - Engine + session → `database.py`
 - Migration file → `migrations/versions/0001_init.py`
 

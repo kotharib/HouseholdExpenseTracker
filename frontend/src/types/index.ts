@@ -148,6 +148,77 @@ export interface AutoReport {
   generated_at: string
 }
 
+export interface Investment {
+  id: number
+  scheme_name: string
+  category: string
+  amount: number
+  date: string
+  month: string
+  expected_return?: number
+  notes?: string
+}
+
+export interface InvestmentInput {
+  scheme_name: string
+  category: string
+  amount: number
+  date: string
+  month: string
+  expected_return?: number
+  notes?: string
+}
+
+export interface InvestmentOption {
+  key: string
+  name: string
+  category: string
+  asset_class: string
+  risk: 'low' | 'medium' | 'high'
+  expected_return: number
+  lock_in: string
+  tax_benefit: string
+  description: string
+}
+
+export interface RiskProfile {
+  key: string
+  label: string
+}
+
+export interface AllocationItem {
+  asset_class: string
+  label: string
+  percent: number
+  amount: number
+}
+
+export interface AllocationResponse {
+  profile: string
+  description: string
+  total: number
+  items: AllocationItem[]
+}
+
+export interface AdvisorResponse {
+  allocation: AllocationResponse
+  schemes: InvestmentOption[]
+  profiles: RiskProfile[]
+  disclaimer: string
+}
+
+export interface InvestmentSummary {
+  count: number
+  total: number
+  by_category: Record<string, number>
+}
+
+export interface InvestmentAdvisorRequest {
+  amount: number
+  profile: string
+  months?: number
+}
+
 export interface Page<T> {
   data: T[]
 }

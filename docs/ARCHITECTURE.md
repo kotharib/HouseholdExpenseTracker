@@ -102,6 +102,7 @@ Five tables are defined in `server/app/models/`:
 | `servants`              | household staff (name, role, monthly salary)    |
 | `milk_deliveries`       | milk purchases (supplier, quantity, rate)       |
 | `newspaper_deliveries`  | newspaper subscriptions (name, monthly cost)    |
+| `investments`           | investments (scheme, category, amount, expected return) |
 
 A nice picture of the relationships is in [docs/DIAGRAMS.md](docs/DIAGRAMS.md#2-entity-relationship-er-diagram).
 
@@ -129,6 +130,7 @@ Each router in `server/app/routers/` owns one "resource":
 | `servants.py` | `/servants`  | same for servants                    |
 | `milk.py`  | `/milk`         | same for milk deliveries             |
 | `newspaper.py` | `/newspaper` | same for newspapers                |
+| `investments.py` | `/investments` | same for investments + catalog, advisor, summary |
 | `dashboard.py` | `/dashboard` | summary numbers and charts data    |
 | `ai.py`    | `/ai`           | chat, insights, monthly report       |
 | `reports.py` | `/reports`    | auto-report + PDF download           |

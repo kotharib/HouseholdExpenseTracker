@@ -1,6 +1,6 @@
 import { NavLink, useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { styled } from '@mui/material/styles'
-import { Article as ArticleIcon, Chat as ChatIcon, Dashboard as DashboardIcon, DarkMode as DarkModeIcon, Description as DescriptionIcon, LightMode as LightModeIcon, Logout as LogoutIcon, People as PeopleIcon, Receipt as ReceiptIcon, Settings as SettingsIcon, Savings as SavingsIcon, WaterDrop as WaterDropIcon } from '@mui/icons-material'
+import { Article as ArticleIcon, Chat as ChatIcon, Dashboard as DashboardIcon, DarkMode as DarkModeIcon, Description as DescriptionIcon, LightMode as LightModeIcon, Logout as LogoutIcon, People as PeopleIcon, Receipt as ReceiptIcon, Settings as SettingsIcon, Savings as SavingsIcon, ShowChart as ShowChartIcon, WaterDrop as WaterDropIcon } from '@mui/icons-material'
 import { IconButton, Stack, Tooltip } from '@mui/material'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
@@ -143,6 +143,7 @@ export default function Layout() {
   const items: NavItem[] = [
     { label: 'Dashboard', path: '/', icon: DashboardIcon },
     { label: 'Expenses', path: '/expenses', icon: ReceiptIcon },
+    { label: 'Investments', path: '/investments', icon: ShowChartIcon },
     { label: 'Servants', path: '/servants', icon: PeopleIcon },
     { label: 'Milk', path: '/milk', icon: WaterDropIcon },
     { label: 'Newspaper', path: '/newspaper', icon: ArticleIcon },

@@ -31,7 +31,8 @@ This README is written so that even someone new to software development or AI ca
 ## What does this app do?
 
 It is a personal finance tracker for a household. You can record everyday expenses, track
-servant salaries, milk deliveries and newspaper subscriptions — then ask an **AI assistant**
+servant salaries, milk deliveries and newspaper subscriptions, and log **investments**
+(mutual funds, PPF, NPS and other Indian options) — then ask an **AI assistant**
 questions about your money, get monthly summaries, and download a **PDF report**.
 
 Think of it as a spreadsheet that can *talk to you*.
@@ -55,6 +56,8 @@ Think of it as a spreadsheet that can *talk to you*.
 - Servant salary tracking (cook, cleaning, driver and custom roles)
 - Milk delivery tracking (supplier, quantity, rate, month)
 - Newspaper subscription tracking
+- **Investment tracking** (mutual funds, PPF, NPS, ELSS, Sukanya Samriddhi, FDs…)
+- **Investment Advisor**: risk-based asset allocation + representative Indian schemes
 - **Filter and sort** on every column of every list
 - **Bulk delete** (delete selected rows, or delete everything) on every list
 - Dashboard with animated metric cards and charts (trend bar + category pie)
@@ -75,7 +78,7 @@ Browser (React app)
 FastAPI backend  ──────────►  SQLite database (one file: household.db)
       │
       ├── JWT auth (login/register)
-      ├── REST endpoints (expenses, servants, milk, newspaper, dashboard)
+      ├── REST endpoints (expenses, servants, milk, newspaper, investments, dashboard)
       └── AI agent (LangChain + Ollama llama3, or fallback engine)
 ```
 
@@ -100,10 +103,10 @@ Detailed diagrams: [docs/DIAGRAMS.md](docs/DIAGRAMS.md) and [docs/ARCHITECTURE.m
 │   │   ├── main.py           # App factory, CORS, routers, startup seeding
 │   │   ├── config.py         # Settings from environment variables
 │   │   ├── database.py       # Database engine, sessions, init_db
-│   │   ├── models/           # SQLModel tables (users, expenses, servants, milk, newspaper)
+│   │   ├── models/           # SQLModel tables (users, expenses, servants, milk, newspaper, investments)
 │   │   ├── schemas/          # Pydantic request/response models (data shapes)
-│   │   ├── routers/          # auth, expenses, servants, milk, newspaper, dashboard, ai, reports, diagrams
-│   │   ├── services/         # insights (financial math), seed (sample data)
+│   │   ├── routers/          # auth, expenses, servants, milk, newspaper, investments, dashboard, ai, reports, diagrams
+│   │   ├── services/         # insights (financial math), investment_advisor, seed (sample data)
 │   │   ├── auth/             # password hashing + JWT + dependencies
 │   │   ├── ai/               # agent.py (LangChain + fallback), tools.py (custom tools)
 │   │   ├── reports/          # pdf.py (ReportLab generator)
@@ -214,6 +217,7 @@ Read the full beginner guide: [docs/AI_GUIDE.md](docs/AI_GUIDE.md).
 - "What is my top spending category this month?"
 - "Give me financial insights and savings suggestions."
 - "Generate a monthly report for 2026-08."
+- "Suggest investments for ₹1,00,000 with an aggressive profile."
 
 ## API documentation
 
@@ -269,6 +273,20 @@ All data endpoints require `Authorization: Bearer <token>`.
 | DELETE | `/newspaper/{id}`         | — |
 | POST   | `/newspaper/bulk-delete`  | body `{"ids": [..]}` or `{"all": true}` |
 
+### Investments
+
+| Method | Endpoint                     | Notes |
+|--------|------------------------------|-------|
+| GET    | `/investments`               | query: `month`, `category` |
+| POST   | `/investments`               | `{scheme_name, category, amount, date, month?, expected_return?, notes?}` |
+| PUT    | `/investments/{id}`          | partial update |
+| DELETE | `/investments/{id}`          | — |
+| POST   | `/investments/bulk-delete`   | body `{"ids": [..]}` or `{"all": true}` |
+| GET    | `/investments/options`       | curated catalog of Indian options (PPF, NPS, ELSS, SSY, FDs, MFs…) |
+| GET    | `/investments/profiles`      | risk profiles: conservative / moderate / aggressive |
+| POST   | `/investments/advisor`       | `{amount, profile}` → asset allocation + representative schemes |
+| GET    | `/investments/summary`       | total invested + breakdown by category |
+
 ### Dashboard
 
 | Method | Endpoint                     | Notes |
@@ -320,6 +338,15 @@ servants            milk_deliveries         newspaper_deliveries
 - monthly_salary    - date / month(indexed) - month (indexed)
 - payment_status    - payment_status        - payment_status
 - attendance_count
+
+investments
+- id
+- scheme_name (indexed)
+- category (indexed)   # ppf, nps, ssy, scss, nsc, fd, rd, sgb, elss,
+                       # equity_mf, index_fund, debt_mf, hybrid_mf
+- amount
+- date (indexed) / month (indexed)
+- expected_return / notes
 ```
 
 Months are stored as `YYYY-MM`. Migration: `server/migrations/versions/0001_init.py`.

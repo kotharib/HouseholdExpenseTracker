@@ -110,13 +110,17 @@ engine**.
 
 The fallback engine does not "think" — it uses simple rules:
 
-- It looks at the message text and **matches keywords** ("spend", "servant", "milk", ...).
+- It looks at the message text and **matches keywords** ("spend", "servant", "milk", "invest", ...).
 - It runs the same database queries as the tools would.
 - It assembles a pre-written sentence with the real numbers.
 
 So both paths — real LLM and fallback — produce an answer from the same data, and **every
 feature keeps working** even with no AI installed. The UI shows a small chip so you know which
 engine answered.
+
+Investment questions ("Suggest investments for ₹1,00,000") are handled by the fallback's
+`_investment_answer`, which reuses the same catalog and allocation logic as the
+`POST /investments/advisor` endpoint.
 
 ```mermaid
 graph TD

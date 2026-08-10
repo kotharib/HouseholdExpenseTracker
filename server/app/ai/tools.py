@@ -6,6 +6,7 @@ from sqlmodel import Session
 
 from app.database import engine
 from app.services import insights as insight_service
+from app.services import investment_advisor
 from app.utils.helpers import format_money
 
 
@@ -103,6 +104,30 @@ def _trend_word(delta: float) -> str:
     return "flat"
 
 
+def _investment_advice(amount: str = "0", profile: str = "moderate") -> str:
+    """Return a suggested asset-allocation for a lump sum based on risk profile."""
+    try:
+        amount = float(amount or 0)
+    except ValueError:
+        amount = 0.0
+    allocation = investment_advisor.build_allocation(amount, profile)
+    lines = [
+        f"Suggested allocation for {format_money(allocation['total'])} "
+        f"({allocation['profile']} profile):",
+    ]
+    for item in allocation["items"]:
+        lines.append(f"- {item['label']}: {item['percent']:.0f}% ({format_money(item['amount'])})")
+    lines.append("")
+    lines.append("Representative schemes:")
+    for opt in investment_advisor.suggested_schemes(allocation, limit=5):
+        lines.append(
+            f"- {opt['name']} (risk: {opt['risk']}, ~{opt['expected_return']:.1f}% expected): {opt['description']}"
+        )
+    lines.append("")
+    lines.append("Note: educational information, not SEBI-registered financial advice.")
+    return "\n".join(lines)
+
+
 def build_langchain_tools() -> list:
     """Build the list of LangChain Tool objects for the SQL agent."""
     from langchain.tools import Tool
@@ -137,4 +162,13 @@ def build_langchain_tools() -> list:
         func=_pdf_ready_text,
         description="Generate a PDF-ready text block summarizing a month (YYYY-MM) for reports.",
     )
-    return [sql_tool, insights_tool, summary_tool, pdf_tool]
+    investment_tool = Tool.from_function(
+        name="investment_advisor",
+        func=_investment_advice,
+        description=(
+            "Suggest an asset allocation and Indian investment schemes (PPF, NPS, ELSS, "
+            "Sukanya Samriddhi, FDs, mutual funds) for an amount and a risk profile "
+            "(conservative/moderate/aggressive). Pass amount as a string number."
+        ),
+    )
+    return [sql_tool, insights_tool, summary_tool, pdf_tool, investment_tool]

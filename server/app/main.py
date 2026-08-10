@@ -13,6 +13,7 @@ from app.routers import (
     dashboard,
     diagrams,
     expenses,
+    investments,
     milk,
     newspaper,
     reports,
@@ -56,7 +57,7 @@ app.add_middleware(
 
 for r in (auth.router, expenses.router, servants.router, milk.router,
           newspaper.router, dashboard.router, ai.router, reports.router,
-          diagrams.router):
+          diagrams.router, investments.router):
     app.include_router(r)
 
 

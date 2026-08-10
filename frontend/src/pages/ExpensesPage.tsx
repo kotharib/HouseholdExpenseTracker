@@ -33,7 +33,6 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     load(month)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month])
 
   const submit = async (data: ExpenseInput, id?: number) => {

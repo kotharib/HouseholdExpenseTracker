@@ -7,6 +7,7 @@ import AuthPage from './pages/AuthPage'
 import ChatPage from './pages/ChatPage'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
+import InvestmentsPage from './pages/InvestmentsPage'
 import MilkPage from './pages/MilkPage'
 import NewspaperPage from './pages/NewspaperPage'
 import ReportsPage from './pages/ReportsPage'
@@ -34,6 +35,7 @@ export default function App() {
           >
             <Route path="/" element={<DashboardPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
+            <Route path="/investments" element={<InvestmentsPage />} />
             <Route path="/servants" element={<ServantsPage />} />
             <Route path="/milk" element={<MilkPage />} />
             <Route path="/newspaper" element={<NewspaperPage />} />

@@ -175,6 +175,8 @@ class FallbackAgent:
     def respond(self, message: str) -> str:
         lowered = message.lower().strip()
         with self._session() as session:
+            if any(k in lowered for k in ("invest", "mutual fund", "ppf", "nps", "sip", "elss", "portfolio", "asset allocation")):
+                return self._investment_answer(lowered)
             if any(k in lowered for k in ("insight", "analys", "analyz", "overspend", "suggest")):
                 return self._insight_answer(session, lowered)
             if "report" in lowered:
@@ -311,6 +313,32 @@ class FallbackAgent:
         lines.extend(f"  - {h}" for h in data["savings_hints"] or ["No specific suggestions available."])
         return "\n".join(lines)
 
+    def _investment_answer(self, text: str) -> str:
+        from app.ai.tools import _investment_advice
+        from app.services import investment_advisor
+
+        amount = 0.0
+        numbers = re.findall(r"(?:₹|rs\.?|rs)?\s*([\d,]+)", text)
+        if numbers:
+            try:
+                amount = float(numbers[0].replace(",", ""))
+            except ValueError:
+                amount = 0.0
+        profile = "moderate"
+        for candidate in ("conservative", "moderate", "aggressive"):
+            if candidate in text:
+                profile = candidate
+                break
+        if "profile" in text and not any(p in text for p in ("conservative", "moderate", "aggressive")):
+            lines = ["Choose a risk profile to get a custom allocation:"]
+            for p in investment_advisor.risk_profiles():
+                lines.append(f"- {p['key']}: {p['label']}")
+            lines.append(
+                "\nExample: 'Suggest investments for ₹1,00,000 with an aggressive profile.'"
+            )
+            return "\n".join(lines)
+        return _investment_advice(str(amount), profile)
+
     def _help_answer(self, session) -> str:
         data = insight_service.compute_insights(session)
         return (
@@ -320,7 +348,8 @@ class FallbackAgent:
             "  - Which servant salary is pending?\n"
             "  - Summarize my milk expenses for July.\n"
             "  - Give me financial insights.\n"
-            "  - Generate a monthly report.\n\n"
+            "  - Generate a monthly report.\n"
+            "  - Suggest investments for ₹1,00,000 (conservative profile).\n\n"
             f"Quick status for {data['month_label']}: spent {format_money(data['current_month_total'])}, "
             f"pending payments {format_money(data['pending']['total'])}.\n\n"
             f"(Note: local LLM 'llama3' via Ollama is {'connected' if ollama_available() else 'not detected'} — "

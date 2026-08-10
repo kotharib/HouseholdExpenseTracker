@@ -33,7 +33,6 @@ export default function MilkPage() {
 
   useEffect(() => {
     load(month)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month])
 
   const submit = async (data: MilkInput, id?: number) => {

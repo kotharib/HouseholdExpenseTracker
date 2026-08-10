@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from app.auth.security import hash_password
 from app.models.expense import Expense
+from app.models.investment import Investment
 from app.models.milk import MilkDelivery
 from app.models.newspaper import NewspaperDelivery
 from app.models.servant import Servant
@@ -142,10 +143,43 @@ def seed_newspapers(session: Session) -> None:
         )
 
 
+def seed_investments(session: Session) -> None:
+    existing = session.exec(select(Investment)).first()
+    if existing:
+        return
+    today = date.today()
+    current_month = today.strftime("%Y-%m")
+    sample = [
+        ("HDFC Flexi Cap Fund - Direct", "equity_mf", 10000.0, 14, 12.0, "Monthly SIP - Direct growth plan"),
+        ("SBI Bluechip Fund - Direct", "equity_mf", 5000.0, 7, 12.0, "SIP top-up"),
+        ("PPF Account - Post Office", "ppf", 15000.0, 5, 7.1, "Annual contribution towards 80C"),
+        ("NPS Tier 1 - HDFC Pension", "nps", 8000.0, 20, 9.0, "Monthly contribution (NPS 50)"),
+        ("Nifty 50 Index Fund - UTI", "index_fund", 3000.0, 2, 11.0, "Index investing"),
+        ("Axis Long Term Equity (ELSS)", "elss", 2000.0, 3, 12.0, "Tax saver ELSS"),
+        ("Sukanya Samriddhi - Post Office", "ssy", 6000.0, 9, 8.2, "For daughter's future education"),
+        ("Bank FD - SBI 444 days", "fd", 50000.0, 28, 6.7, "Emergency buffer FD"),
+        ("SBI Magnum Gilt Fund", "debt_mf", 4000.0, 15, 7.0, "Gilt fund for stability"),
+        ("HDFC Balanced Advantage", "hybrid_mf", 3500.0, 11, 9.0, "Hybrid fund"),
+    ]
+    for name, cat, amount, day, ret, notes in sample:
+        session.add(
+            Investment(
+                scheme_name=name,
+                category=cat,
+                amount=amount,
+                date=date(today.year, today.month, min(day, today.day)),
+                month=current_month,
+                expected_return=ret,
+                notes=notes,
+            )
+        )
+
+
 def run_seed(session: Session) -> None:
     seed_users(session)
     seed_expenses(session)
     seed_servants(session)
     seed_milk(session)
     seed_newspapers(session)
+    seed_investments(session)
     session.commit()
