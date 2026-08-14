@@ -1,11 +1,13 @@
 import {
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
@@ -32,6 +34,7 @@ export default function MilkForm({ open, initial, onClose, onSubmit, submitting 
   const [rate, setRate] = useState('')
   const [date, setDate] = useState(today())
   const [month, setMonth] = useState(currentMonth())
+  const [delivered, setDelivered] = useState(true)
   const [status, setStatus] = useState<'pending' | 'paid'>('pending')
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export default function MilkForm({ open, initial, onClose, onSubmit, submitting 
       setRate(initial ? String(initial.rate) : '')
       setDate(initial?.date ?? today())
       setMonth(initial?.month ?? currentMonth())
+      setDelivered(initial?.is_delivered ?? true)
       setStatus(initial?.payment_status ?? 'pending')
     }
   }, [open, initial])
@@ -54,6 +58,7 @@ export default function MilkForm({ open, initial, onClose, onSubmit, submitting 
         rate: Number(rate),
         date,
         month,
+        is_delivered: delivered,
         payment_status: status,
       },
       initial?.id,
@@ -95,6 +100,10 @@ export default function MilkForm({ open, initial, onClose, onSubmit, submitting 
               <MenuItem value="paid">Paid</MenuItem>
             </Select>
           </FormControl>
+          <FormControlLabel
+            control={<Checkbox checked={delivered} onChange={(e) => setDelivered(e.target.checked)} />}
+            label="Delivered"
+          />
           <Box>
             Total: <strong>{formatMoneyFixed(total)}</strong>
           </Box>

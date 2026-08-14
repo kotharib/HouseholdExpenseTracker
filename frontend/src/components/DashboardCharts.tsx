@@ -1,5 +1,5 @@
-import { Box, Card, CardContent, Grid, Stack, Typography, useTheme } from '@mui/material'
-import { AccountBalanceWallet as WalletIcon, ArrowDownward as ArrowDownIcon, ArrowUpward as ArrowUpIcon, PendingActions as PendingIcon, Savings as SavingsIcon } from '@mui/icons-material'
+import { Box, Card, CardContent, Chip, Grid, Stack, Typography, useTheme } from '@mui/material'
+import { AccountBalanceWallet as WalletIcon, ArrowDownward as ArrowDownIcon, ArrowUpward as ArrowUpIcon, ErrorOutline as ErrorOutlineIcon, LocalShipping as LocalShippingIcon, PendingActions as PendingIcon, Savings as SavingsIcon, WaterDrop as WaterDropIcon } from '@mui/icons-material'
 import {
   Bar,
   BarChart,
@@ -179,6 +179,88 @@ export default function DashboardCharts({ summary }: { summary: DashboardSummary
           </Card>
         </Grid>
       </Grid>
+
+      {summary.delivery_summary && (
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          <Grid item xs={12} md={7}>
+            <Card className="animate-fade-up" sx={{ animationDelay: '240ms', height: '100%' }}>
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                  <LocalShippingIcon color="primary" fontSize="small" />
+                  <Typography variant="h6">Monthly Delivery Summary</Typography>
+                </Stack>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <WaterDropIcon color="primary" fontSize="small" />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Milk deliveries
+                        </Typography>
+                        <Typography variant="h6" fontWeight={700}>
+                          {summary.delivery_summary.milk_delivered_days}/{summary.delivery_summary.milk_total_days} delivered
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Box
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          background: 'linear-gradient(135deg, #7c3aed, #7c3aed99)',
+                        }}
+                      >
+                        <Typography variant="caption" fontWeight={700}>
+                          NP
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Newspaper delivered days
+                        </Typography>
+                        <Typography variant="h6" fontWeight={700}>
+                          {summary.delivery_summary.newspaper_delivered_days}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={5}>
+            <Card
+              className="animate-fade-up"
+              sx={{
+                animationDelay: '280ms',
+                height: '100%',
+                backgroundColor: summary.delivery_summary.total_missed_deliveries > 0 ? theme.palette.error.light + '22' : theme.palette.success.light + '22',
+              }}
+            >
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                  <ErrorOutlineIcon color={summary.delivery_summary.total_missed_deliveries > 0 ? 'error' : 'success'} fontSize="small" />
+                  <Typography variant="h6">Missed Deliveries</Typography>
+                </Stack>
+                <Typography variant="h3" fontWeight={800} color={summary.delivery_summary.total_missed_deliveries > 0 ? 'error' : 'success.main'}>
+                  {summary.delivery_summary.total_missed_deliveries}
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                  <Chip size="small" label={`Milk: ${summary.delivery_summary.milk_missed_days}`} color={summary.delivery_summary.milk_missed_days > 0 ? 'warning' : 'default'} />
+                  <Chip size="small" label={`Newspaper: ${summary.delivery_summary.newspaper_missed_days}`} color={summary.delivery_summary.newspaper_missed_days > 0 ? 'warning' : 'default'} />
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
 
       <Card className="animate-fade-up" sx={{ mt: 2, animationDelay: '280ms' }}>
         <CardContent>

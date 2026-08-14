@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthPage from './pages/AuthPage'
+import BillingPage from './pages/BillingPage'
 import ChatPage from './pages/ChatPage'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/servants" element={<ServantsPage />} />
             <Route path="/milk" element={<MilkPage />} />
             <Route path="/newspaper" element={<NewspaperPage />} />
+            <Route path="/billing" element={<BillingPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />

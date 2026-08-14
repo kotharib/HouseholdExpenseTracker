@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlmodel import Session
 
 from app.database import engine
+from app.services import delivery as delivery_service
 from app.services import insights as insight_service
 from app.services import investment_advisor
 from app.utils.helpers import format_money
@@ -104,6 +105,115 @@ def _trend_word(delta: float) -> str:
     return "flat"
 
 
+def _resolve_tool_month(year: str, month: str) -> str:
+    """Resolve a YYYY-MM month from optional year/month tool arguments.
+
+    LangChain Tool wraps functions so the LLM typically sends a single string
+    (the JSON args or a "YYYY-MM" value), which lands in the first parameter.
+    Accepts: "2026-07", '{"year":"2026","month":"07"}', "2026 07", month names
+    like "July", or falls back to the current month.
+    """
+    import calendar as _calendar
+    import json
+    import re as _re
+    from datetime import date
+
+    today = date.today()
+    year = (year or "").strip()
+    month = (month or "").strip()
+    combined = year or month
+
+    if combined.startswith("{"):
+        try:
+            data = json.loads(combined)
+            year = str(data.get("year", "") or "").strip()
+            month = str(data.get("month", "") or "").strip()
+        except (ValueError, TypeError):
+            pass
+    else:
+        match = _re.match(r"^(\d{4})[\s,/-]+(\d{1,2})$", combined)
+        if match:
+            year, month = match.group(1), match.group(2)
+
+    if len(year) == 4 and year.isdigit() and month.isdigit() and 1 <= int(month) <= 12:
+        return f"{year}-{int(month):02d}"
+    if len(month) == 7 and month[:4].isdigit() and month[5:7].isdigit():
+        return month
+
+    lowered = combined.lower()
+    for idx, name in enumerate(_calendar.month_name[1:], start=1):
+        if name.lower() in lowered:
+            return f"{today.year}-{idx:02d}"
+    return today.strftime("%Y-%m")
+
+
+def _get_monthly_bill(year: str = "", month: str = "") -> str:
+    """Return the full monthly bill breakdown for a given year/month."""
+    target = _resolve_tool_month(year, month)
+    with Session(engine) as session:
+        data = delivery_service.monthly_bill(session, target)
+        lines = [
+            f"MONTHLY BILL - {data['month_label']}",
+            f"Milk bill: {format_money(data['milk_bill'])}",
+            f"Newspaper bill: {format_money(data['newspaper_bill'])}",
+            f"Servant salary total: {format_money(data['servant_salary_total'])}",
+            f"Expenses total: {format_money(data['expenses_total'])}",
+            f"GRAND TOTAL: {format_money(data['grand_total'])}",
+        ]
+        lines.append("Milk details:")
+        for d in data["milk_details"]:
+            lines.append(
+                f"  - {d['date']}: {d['supplier']} {d['quantity']}L x {format_money(d['rate'])} "
+                f"= {format_money(d['total'])}"
+            )
+        lines.append("Newspaper details:")
+        for d in data["newspaper_details"]:
+            lines.append(
+                f"  - {d['name']}: {format_money(d['monthly_cost'])} x {d['days_delivered']} days "
+                f"= {format_money(d['total'])}"
+            )
+        lines.append("Servant details:")
+        for d in data["servant_details"]:
+            lines.append(f"  - {d['name']} ({d['role']}): {format_money(d['monthly_salary'])}")
+        return "\n".join(lines)
+
+
+def _get_delivery_summary(year: str = "", month: str = "") -> str:
+    """Return a daily delivery status summary for a given year/month."""
+    target = _resolve_tool_month(year, month)
+    with Session(engine) as session:
+        milk = delivery_service.milk_daily_summary(session, target)
+        papers = delivery_service.newspaper_daily_summary(session, target)
+        lines = [
+            f"DELIVERY SUMMARY - {milk['month_label']}",
+            f"Milk: {milk['delivered_days']} delivered / {len(milk['days'])} recorded "
+            f"({milk['missed_days']} missed).",
+        ]
+        for d in milk["days"]:
+            lines.append(
+                f"  - {d['date']}: {'delivered' if d['delivered'] else 'MISSED'} "
+                f"({d['supplier']} {d['quantity']}L)"
+            )
+        for group in papers["newspapers"]:
+            lines.append(
+                f"{group['name']}: {group['days_delivered']}/{group['days_total']} days delivered."
+            )
+        return "\n".join(lines)
+
+
+def _get_missing_deliveries(year: str = "", month: str = "") -> str:
+    """Return the list of days where milk or newspaper was not delivered."""
+    target = _resolve_tool_month(year, month)
+    with Session(engine) as session:
+        missed = delivery_service.missing_deliveries(session, target)
+        if not missed:
+            return f"No missed deliveries for {target}."
+        lines = [f"MISSED DELIVERIES - {target} ({len(missed)} total):"]
+        for item in missed:
+            lines.append(f"  - {item['date']} ({item['type']}): {item['detail']}")
+        return "\n".join(lines)
+
+
 def _investment_advice(amount: str = "0", profile: str = "moderate") -> str:
     """Return a suggested asset-allocation for a lump sum based on risk profile."""
     try:
@@ -139,8 +249,8 @@ def build_langchain_tools() -> list:
             "Execute a read-only SQL SELECT query on the SQLite database. Tables: "
             "expenses(id, category, amount, date, notes, payment_mode, tags), "
             "servants(id, name, role, monthly_salary, payment_status, attendance_count), "
-            "milk_deliveries(id, supplier, quantity, rate, date, month, payment_status), "
-            "newspaper_deliveries(id, name, monthly_cost, month, payment_status), "
+            "milk_deliveries(id, supplier, quantity, rate, date, month, is_delivered, payment_status), "
+            "newspaper_deliveries(id, name, monthly_cost, date, month, delivery_status, payment_status), "
             "users(id, username, password_hash, role). Use month LIKE 'YYYY-MM' filters."
         ),
     )
@@ -171,4 +281,41 @@ def build_langchain_tools() -> list:
             "(conservative/moderate/aggressive). Pass amount as a string number."
         ),
     )
-    return [sql_tool, insights_tool, summary_tool, pdf_tool, investment_tool]
+    delivery_bill_tool = Tool.from_function(
+        name="get_monthly_bill",
+        func=_get_monthly_bill,
+        description=(
+            "Compute the full monthly bill breakdown for a month. Pass a single month "
+            "string in YYYY-MM format (e.g. '2026-07') or a JSON object with year and month "
+            "fields. Returns milk bill, newspaper bill, servant salary total, expenses total "
+            "and grand total with details."
+        ),
+    )
+    delivery_summary_tool = Tool.from_function(
+        name="get_delivery_summary",
+        func=_get_delivery_summary,
+        description=(
+            "Return the daily delivery status for a month. Pass a single month string in "
+            "YYYY-MM format (e.g. '2026-07') or a JSON object with year and month fields. "
+            "Includes milk deliveries and newspaper deliveries."
+        ),
+    )
+    missing_deliveries_tool = Tool.from_function(
+        name="get_missing_deliveries",
+        func=_get_missing_deliveries,
+        description=(
+            "Return the list of days where milk or newspaper was NOT delivered for a month. "
+            "Pass a single month string in YYYY-MM format (e.g. '2026-07') or a JSON object "
+            "with year and month fields."
+        ),
+    )
+    return [
+        sql_tool,
+        insights_tool,
+        summary_tool,
+        pdf_tool,
+        investment_tool,
+        delivery_bill_tool,
+        delivery_summary_tool,
+        missing_deliveries_tool,
+    ]

@@ -16,6 +16,7 @@ class MilkDelivery(SQLModel, table=True):
     rate: float = Field(gt=0)
     date: date_type = Field(index=True)
     month: str = Field(index=True, max_length=7)
+    is_delivered: bool = Field(default=True)
     payment_status: str = Field(default="pending", max_length=16)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

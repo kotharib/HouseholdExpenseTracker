@@ -80,6 +80,15 @@ export default function MilkPage() {
     }
   }
 
+  const toggleDelivered = async (delivery: Milk) => {
+    try {
+      await api.put(`/milk/${delivery.id}`, { is_delivered: !delivery.is_delivered })
+      load(month)
+    } catch (err) {
+      setError(getErrorMessage(err))
+    }
+  }
+
   return (
     <div>
       <Typography variant="h4" gutterBottom>
@@ -116,6 +125,7 @@ export default function MilkPage() {
               onDelete={remove}
               onBulkDelete={bulkDelete}
               onDeleteAll={deleteAll}
+              onToggleDelivered={toggleDelivered}
             />
           </CardContent>
         </Card>

@@ -10,6 +10,7 @@ from app.database import engine, init_db
 from app.routers import (
     ai,
     auth,
+    billing,
     dashboard,
     diagrams,
     expenses,
@@ -57,7 +58,7 @@ app.add_middleware(
 
 for r in (auth.router, expenses.router, servants.router, milk.router,
           newspaper.router, dashboard.router, ai.router, reports.router,
-          diagrams.router, investments.router):
+          diagrams.router, investments.router, billing.router):
     app.include_router(r)
 
 

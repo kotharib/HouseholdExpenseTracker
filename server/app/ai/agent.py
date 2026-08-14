@@ -179,6 +179,12 @@ class FallbackAgent:
                 return self._investment_answer(lowered)
             if any(k in lowered for k in ("insight", "analys", "analyz", "overspend", "suggest")):
                 return self._insight_answer(session, lowered)
+            if self._is_missing_query(lowered):
+                return self._missing_deliveries_answer(session, lowered)
+            if self._is_delivery_query(lowered):
+                return self._delivery_summary_answer(session, lowered)
+            if "bill" in lowered:
+                return self._bill_answer(session, lowered)
             if "report" in lowered:
                 month = self._resolve_month(lowered)
                 return self._report_answer(session, month)
@@ -191,6 +197,103 @@ class FallbackAgent:
             if any(k in lowered for k in ("spend", "expense", "money", "cost", "how much")):
                 return self._spend_answer(session, lowered)
             return self._help_answer(session)
+
+    @staticmethod
+    def _is_delivery_query(text: str) -> bool:
+        return any(k in text for k in ("delivery", "deliveries", "delivered"))
+
+    @staticmethod
+    def _is_missing_query(text: str) -> bool:
+        missed_hint = any(
+            k in text
+            for k in (
+                "missing", "missed", "not arrive", "didn't arrive",
+                "did not arrive", "not delivered", "skipped",
+            )
+        )
+        return missed_hint and (
+            FallbackAgent._is_delivery_query(text)
+            or "milk" in text
+            or "newspaper" in text
+        )
+
+    # ------------------------------------------------- delivery & billing
+    def _bill_answer(self, session, text: str) -> str:
+        from app.services import delivery as delivery_service
+
+        month = self._resolve_month(text)
+        data = delivery_service.monthly_bill(session, month)
+        if "milk bill" in text:
+            return (
+                f"Milk bill for {month_name(month)}: {format_money(data['milk_bill'])} "
+                f"across {len(data['milk_details'])} delivered days."
+            )
+        if "newspaper bill" in text:
+            lines = [
+                f"Newspaper bill for {month_name(month)}: {format_money(data['newspaper_bill'])}"
+            ]
+            for nd in data["newspaper_details"]:
+                lines.append(
+                    f"  - {nd['name']}: {format_money(nd['monthly_cost'])} x "
+                    f"{nd['days_delivered']} days = {format_money(nd['total'])}"
+                )
+            return "\n".join(lines)
+        lines = [
+            f"MONTHLY BILL — {month_name(month)}",
+            f"Milk bill: {format_money(data['milk_bill'])}",
+            f"Newspaper bill: {format_money(data['newspaper_bill'])}",
+            f"Servant salaries: {format_money(data['servant_salary_total'])}",
+            f"Expenses: {format_money(data['expenses_total'])}",
+            f"GRAND TOTAL: {format_money(data['grand_total'])}",
+        ]
+        return "\n".join(lines)
+
+    def _delivery_summary_answer(self, session, text: str) -> str:
+        from app.services import delivery as delivery_service
+
+        month = self._resolve_month(text)
+        if "newspaper" in text and "milk" not in text:
+            data = delivery_service.newspaper_daily_summary(session, month)
+            if not data["newspapers"]:
+                return f"No newspaper deliveries recorded for {month_name(month)}."
+            lines = [
+                f"Newspaper deliveries for {month_name(month)} "
+                f"({data['total_delivered']} delivered days):"
+            ]
+            for g in data["newspapers"]:
+                lines.append(f"  - {g['name']}: {g['days_delivered']}/{g['days_total']} days delivered")
+            return "\n".join(lines)
+        if "milk" in text and "newspaper" not in text:
+            data = delivery_service.milk_daily_summary(session, month)
+            if not data["days"]:
+                return f"No milk deliveries recorded for {month_name(month)}."
+            return (
+                f"Milk deliveries for {month_name(month)}: {data['delivered_days']} delivered days, "
+                f"{data['missed_days']} missed days."
+            )
+        milk = delivery_service.milk_daily_summary(session, month)
+        papers = delivery_service.newspaper_daily_summary(session, month)
+        paper_lines = [
+            f"  - {g['name']}: {g['days_delivered']}/{g['days_total']} days"
+            for g in papers["newspapers"]
+        ]
+        return (
+            f"Delivery summary for {month_name(month)}:\n"
+            f"- Milk: {milk['delivered_days']} delivered, {milk['missed_days']} missed.\n"
+            + ("\n".join(paper_lines) if paper_lines else "- No newspapers recorded.")
+        )
+
+    def _missing_deliveries_answer(self, session, text: str) -> str:
+        from app.services import delivery as delivery_service
+
+        month = self._resolve_month(text)
+        missed = delivery_service.missing_deliveries(session, month)
+        if not missed:
+            return f"No missed milk or newspaper deliveries for {month_name(month)}."
+        lines = [f"Missed deliveries for {month_name(month)} ({len(missed)}):"]
+        for item in missed:
+            lines.append(f"- {item['date']} ({item['type']}): {item['detail']}")
+        return "\n".join(lines)
 
     def _spend_answer(self, session, text: str) -> str:
         month = self._resolve_month(text)
@@ -347,6 +450,10 @@ class FallbackAgent:
             "  - How much did I spend last month?\n"
             "  - Which servant salary is pending?\n"
             "  - Summarize my milk expenses for July.\n"
+            "  - What is my milk bill for July?\n"
+            "  - How many newspaper deliveries happened this month?\n"
+            "  - Which days did milk not arrive?\n"
+            "  - Generate my monthly bill summary.\n"
             "  - Give me financial insights.\n"
             "  - Generate a monthly report.\n"
             "  - Suggest investments for ₹1,00,000 (conservative profile).\n\n"

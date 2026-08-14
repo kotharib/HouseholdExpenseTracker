@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as date_type
 from typing import Optional
 
 from pydantic import Field, field_validator
@@ -8,13 +8,15 @@ VALID_PAYMENT_STATUSES = {"pending", "paid"}
 
 
 def current_month() -> str:
-    return date.today().strftime("%Y-%m")
+    return date_type.today().strftime("%Y-%m")
 
 
 class NewspaperBase(SQLModel):
     name: str = Field(min_length=1, max_length=128)
     monthly_cost: float = Field(gt=0)
+    date: date_type = Field(default_factory=date_type.today)
     month: str = Field(default_factory=current_month, max_length=7)
+    delivery_status: bool = Field(default=True)
     payment_status: str = Field(default="pending", max_length=16)
 
     @field_validator("name")
@@ -43,7 +45,9 @@ class NewspaperCreate(NewspaperBase):
 class NewspaperUpdate(SQLModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=128)
     monthly_cost: Optional[float] = Field(default=None, gt=0)
+    date: Optional[date_type] = None
     month: Optional[str] = Field(default=None, max_length=7)
+    delivery_status: Optional[bool] = None
     payment_status: Optional[str] = Field(default=None, max_length=16)
 
 

@@ -18,3 +18,8 @@ class AutoReportResponse(BaseModel):
     delta: float = 0.0
     category_totals: list[CategoryTotal] = []
     generated_at: str
+    milk_bill: float = 0.0
+    newspaper_bill: float = 0.0
+    servant_salary_total: float = 0.0
+    grand_total: float = 0.0
+    missed_deliveries: int = 0

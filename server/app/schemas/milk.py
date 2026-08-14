@@ -18,6 +18,7 @@ class MilkBase(SQLModel):
     rate: float = Field(gt=0)
     date: date_type
     month: str = Field(default_factory=current_month, max_length=7)
+    is_delivered: bool = Field(default=True)
     payment_status: str = Field(default="pending", max_length=16)
 
     @field_validator("supplier")
@@ -49,6 +50,7 @@ class MilkUpdate(SQLModel):
     rate: Optional[float] = Field(default=None, gt=0)
     date: Optional[date_type] = None
     month: Optional[str] = Field(default=None, max_length=7)
+    is_delivered: Optional[bool] = None
     payment_status: Optional[str] = Field(default=None, max_length=16)
 
 

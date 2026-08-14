@@ -5,8 +5,10 @@ from app.auth.dependencies import get_current_user
 from app.database import get_session
 from app.models.milk import MilkDelivery
 from app.models.user import User
+from app.schemas.billing import MilkDailyResponse
 from app.schemas.common import BulkDeleteRequest, BulkDeleteResponse
 from app.schemas.milk import MilkCreate, MilkRead, MilkUpdate
+from app.services import delivery as delivery_service
 from app.utils.helpers import validate_month
 
 router = APIRouter(prefix="/milk", tags=["milk"])
@@ -17,6 +19,17 @@ def _get_or_404(session: Session, milk_id: int) -> MilkDelivery:
     if delivery is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Milk delivery not found")
     return delivery
+
+
+@router.get("/deliveries/{year}/{month}", response_model=MilkDailyResponse)
+def daily_milk_deliveries(
+    year: int,
+    month: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(get_current_user),
+):
+    month_str = validate_month(f"{year}-{month:02d}")
+    return MilkDailyResponse(**delivery_service.milk_daily_summary(session, month_str))
 
 
 @router.get("", response_model=list[MilkRead])

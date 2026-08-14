@@ -11,6 +11,7 @@ from app.models.expense import Expense
 from app.models.user import User
 from app.reports.pdf import generate_monthly_pdf
 from app.schemas.report import AutoReportResponse
+from app.services import delivery as delivery_service
 from app.services import insights
 from app.utils.helpers import format_money, month_name, validate_month
 
@@ -65,6 +66,7 @@ async def auto_report(
     target = validate_month(month) if month else date.today().strftime("%Y-%m")
     data = insights.compute_insights(session, target)
     pending = insights.all_pending(session)
+    bill = delivery_service.monthly_bill(session, target)
     ai_text = await _run_agent_monthly(target)
 
     sections = [
@@ -83,6 +85,18 @@ async def auto_report(
         f"(servants {format_money(data['pending']['servant'])}, milk {format_money(data['pending']['milk'])}, "
         f"newspaper {format_money(data['pending']['newspaper'])})."
     )
+    sections.append(
+        f"Monthly bill breakdown: milk {format_money(bill['milk_bill'])}, "
+        f"newspaper {format_money(bill['newspaper_bill'])}, "
+        f"servant salaries {format_money(bill['servant_salary_total'])}, "
+        f"expenses {format_money(bill['expenses_total'])}, "
+        f"grand total {format_money(bill['grand_total'])}."
+    )
+    missed = delivery_service.missing_deliveries(session, target)
+    sections.append(
+        f"Deliveries: {len(missed)} missed "
+        f"({'none' if not missed else '; '.join(m['date'] for m in missed[:5])})."
+    )
     sections.append("AI insights: " + ai_text.replace("\n", " "))
 
     return AutoReportResponse(
@@ -100,6 +114,11 @@ async def auto_report(
         delta=round(data["delta"], 2),
         category_totals=data["category_totals"],
         generated_at=date.today().isoformat(),
+        milk_bill=round(bill["milk_bill"], 2),
+        newspaper_bill=round(bill["newspaper_bill"], 2),
+        servant_salary_total=round(bill["servant_salary_total"], 2),
+        grand_total=round(bill["grand_total"], 2),
+        missed_deliveries=len(missed),
     )
 
 

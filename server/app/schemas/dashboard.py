@@ -20,6 +20,15 @@ class PendingPayment(BaseModel):
     month: str
 
 
+class DeliverySummary(BaseModel):
+    milk_total_days: int
+    milk_delivered_days: int
+    milk_missed_days: int
+    newspaper_delivered_days: int
+    newspaper_missed_days: int
+    total_missed_deliveries: int
+
+
 class DashboardSummary(BaseModel):
     current_month: str
     current_month_total: float
@@ -33,6 +42,7 @@ class DashboardSummary(BaseModel):
     category_totals: list[CategoryTotal]
     monthly_trend: list[MonthlyTotal]
     pending_payments: list[PendingPayment]
+    delivery_summary: DeliverySummary | None = None
 
 
 class MonthlyExpensesResponse(BaseModel):

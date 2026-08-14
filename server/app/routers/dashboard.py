@@ -8,11 +8,13 @@ from app.database import get_session
 from app.models.user import User
 from app.schemas.dashboard import (
     DashboardSummary,
+    DeliverySummary,
     MonthlyExpensesResponse,
     MonthlyTotal,
     PendingPayment,
     PendingPaymentsResponse,
 )
+from app.services import delivery as delivery_service
 from app.services import insights
 from app.utils.helpers import validate_month
 
@@ -48,6 +50,7 @@ def get_summary(session: Session = Depends(get_session), _: User = Depends(get_c
         category_totals=insights.category_totals(session, current_month),
         monthly_trend=[MonthlyTotal(**t) for t in insights.monthly_trend(session)],
         pending_payments=pending_payments,
+        delivery_summary=DeliverySummary(**delivery_service.delivery_summary(session, current_month)),
     )
 
 

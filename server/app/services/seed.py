@@ -112,6 +112,7 @@ def seed_milk(session: Session) -> None:
         return
     today = date.today()
     current_month = today.strftime("%Y-%m")
+    missed_days = {2, 5, 11}
     for day in range(1, today.day + 1, 2):
         supplier = MILK_SUPPLIERS[day % len(MILK_SUPPLIERS)]
         session.add(
@@ -121,6 +122,7 @@ def seed_milk(session: Session) -> None:
                 rate=28.0,
                 date=date(today.year, today.month, min(day, today.day)),
                 month=current_month,
+                is_delivered=day not in missed_days,
                 payment_status="pending",
             )
         )
@@ -132,15 +134,20 @@ def seed_newspapers(session: Session) -> None:
         return
     today = date.today()
     current_month = today.strftime("%Y-%m")
+    last_day = 28
+    missed_days = {2, 9, 17, 25}
     for name, cost in NEWSPAPERS:
-        session.add(
-            NewspaperDelivery(
-                name=name,
-                monthly_cost=cost,
-                month=current_month,
-                payment_status="pending",
+        for day in range(1, last_day + 1):
+            session.add(
+                NewspaperDelivery(
+                    name=name,
+                    monthly_cost=cost,
+                    date=date(today.year, today.month, min(day, last_day)),
+                    month=current_month,
+                    delivery_status=day not in missed_days,
+                    payment_status="pending",
+                )
             )
-        )
 
 
 def seed_investments(session: Session) -> None:

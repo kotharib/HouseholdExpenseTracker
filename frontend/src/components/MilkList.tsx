@@ -25,9 +25,10 @@ interface Props {
   onDelete: (delivery: Milk) => void
   onBulkDelete: (ids: number[]) => void
   onDeleteAll: () => void
+  onToggleDelivered: (delivery: Milk) => void
 }
 
-export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, onDeleteAll }: Props) {
+export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, onDeleteAll, onToggleDelivered }: Props) {
   const [selected, setSelected] = useState<number[]>([])
   const { sortColumn, sortDirection, filters, sortedAndFiltered, handleSort, handleFilter, clearFilters, hasActiveFilter } =
     useTableControls<Milk>(deliveries)
@@ -122,6 +123,9 @@ export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, o
               <SortableHeader align="right" active={sortColumn === 'total'} direction={sortDirection} onClick={() => handleSort('total')}>
                 Total
               </SortableHeader>
+              <SortableHeader active={sortColumn === 'is_delivered'} direction={sortDirection} onClick={() => handleSort('is_delivered')}>
+                Delivered
+              </SortableHeader>
               <SortableHeader active={sortColumn === 'payment_status'} direction={sortDirection} onClick={() => handleSort('payment_status')}>
                 Status
               </SortableHeader>
@@ -134,6 +138,7 @@ export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, o
               <FilterCell align="right" value={filters.quantity ?? ''} onChange={(v) => handleFilter('quantity', v)} placeholder="Qty" />
               <FilterCell align="right" value={filters.rate ?? ''} onChange={(v) => handleFilter('rate', v)} placeholder="Rate" />
               <FilterCell align="right" value={filters.total ?? ''} onChange={(v) => handleFilter('total', v)} placeholder="Total" />
+              <FilterCell value={filters.is_delivered ?? ''} onChange={(v) => handleFilter('is_delivered', v)} placeholder="Yes/No" />
               <FilterCell value={filters.payment_status ?? ''} onChange={(v) => handleFilter('payment_status', v)} placeholder="Status" />
               <TableCell align="right" />
             </TableRow>
@@ -149,6 +154,9 @@ export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, o
                 <TableCell align="right">{d.quantity}</TableCell>
                 <TableCell align="right">{formatMoney(d.rate)}</TableCell>
                 <TableCell align="right">{formatMoney(d.total)}</TableCell>
+                <TableCell>
+                  <Checkbox size="small" checked={d.is_delivered} onChange={() => onToggleDelivered(d)} title="Toggle delivered" />
+                </TableCell>
                 <TableCell>
                   <Chip label={d.payment_status} size="small" color={d.payment_status === 'paid' ? 'success' : 'warning'} />
                 </TableCell>

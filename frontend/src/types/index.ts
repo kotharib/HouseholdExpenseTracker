@@ -54,6 +54,7 @@ export interface Milk {
   rate: number
   date: string
   month: string
+  is_delivered: boolean
   payment_status: 'pending' | 'paid'
   total: number
 }
@@ -64,6 +65,7 @@ export interface MilkInput {
   rate: number
   date: string
   month: string
+  is_delivered: boolean
   payment_status: 'pending' | 'paid'
 }
 
@@ -71,15 +73,118 @@ export interface Newspaper {
   id: number
   name: string
   monthly_cost: number
+  date: string
   month: string
+  delivery_status: boolean
   payment_status: 'pending' | 'paid'
 }
 
 export interface NewspaperInput {
   name: string
   monthly_cost: number
+  date?: string
   month: string
+  delivery_status?: boolean
   payment_status: 'pending' | 'paid'
+}
+
+export interface MilkDay {
+  id: number | null
+  date: string
+  supplier: string
+  quantity: number
+  rate: number
+  total: number
+  delivered: boolean
+  payment_status: 'pending' | 'paid'
+}
+
+export interface MilkDailyResponse {
+  year: number
+  month: string
+  month_label: string
+  days: MilkDay[]
+  delivered_days: number
+  missed_days: number
+}
+
+export interface NewspaperDay {
+  id: number | null
+  date: string
+  delivered: boolean
+}
+
+export interface NewspaperGroup {
+  name: string
+  monthly_cost: number
+  days_delivered: number
+  days_total: number
+  total: number
+  days: NewspaperDay[]
+}
+
+export interface NewspaperDailyResponse {
+  year: number
+  month: string
+  month_label: string
+  newspapers: NewspaperGroup[]
+  total_delivered: number
+  missed_days: number
+}
+
+export interface MilkBillDetail {
+  date: string
+  supplier: string
+  quantity: number
+  rate: number
+  total: number
+  delivered: boolean
+  payment_status: 'pending' | 'paid'
+}
+
+export interface NewspaperBillDetail {
+  name: string
+  monthly_cost: number
+  days_delivered: number
+  total: number
+}
+
+export interface ServantBillDetail {
+  name: string
+  role: string
+  monthly_salary: number
+}
+
+export interface ExpenseBillDetail {
+  id: number
+  category: string
+  amount: number
+  date: string
+  notes?: string
+  payment_mode?: string
+}
+
+export interface MonthlyBill {
+  month: string
+  month_label: string
+  milk_bill: number
+  newspaper_bill: number
+  servant_salary_total: number
+  expenses_total: number
+  grand_total: number
+  milk_details: MilkBillDetail[]
+  newspaper_details: NewspaperBillDetail[]
+  servant_details: ServantBillDetail[]
+  expense_details: ExpenseBillDetail[]
+}
+
+export interface DeliverySummary {
+  milk_total_days: number
+  milk_delivered_days: number
+  milk_missed_days: number
+  newspaper_delivered_days: number
+  newspaper_missed_days: number
+  total_missed_deliveries: number
 }
 
 export interface CategoryTotal {
@@ -112,6 +217,7 @@ export interface DashboardSummary {
   category_totals: CategoryTotal[]
   monthly_trend: MonthlyTotal[]
   pending_payments: PendingPayment[]
+  delivery_summary?: DeliverySummary | null
 }
 
 export interface ChatMessage {
