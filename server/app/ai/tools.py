@@ -1,4 +1,10 @@
-"""Custom LangChain tools exposed to the AI agent."""
+"""Custom LangChain tools exposed to the AI agent.
+
+All tools are strictly read-only and data-grounded. The agent must never answer
+from memory or assumptions: for any question about bills, deliveries or missed
+deliveries it calls the dedicated tool below, and for ad-hoc data questions it
+uses run_sql_query.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +13,6 @@ from sqlmodel import Session
 from app.database import engine
 from app.services import delivery as delivery_service
 from app.services import insights as insight_service
-from app.services import investment_advisor
 from app.utils.helpers import format_money
 
 
@@ -214,36 +219,12 @@ def _get_missing_deliveries(year: str = "", month: str = "") -> str:
         return "\n".join(lines)
 
 
-def _investment_advice(amount: str = "0", profile: str = "moderate") -> str:
-    """Return a suggested asset-allocation for a lump sum based on risk profile."""
-    try:
-        amount = float(amount or 0)
-    except ValueError:
-        amount = 0.0
-    allocation = investment_advisor.build_allocation(amount, profile)
-    lines = [
-        f"Suggested allocation for {format_money(allocation['total'])} "
-        f"({allocation['profile']} profile):",
-    ]
-    for item in allocation["items"]:
-        lines.append(f"- {item['label']}: {item['percent']:.0f}% ({format_money(item['amount'])})")
-    lines.append("")
-    lines.append("Representative schemes:")
-    for opt in investment_advisor.suggested_schemes(allocation, limit=5):
-        lines.append(
-            f"- {opt['name']} (risk: {opt['risk']}, ~{opt['expected_return']:.1f}% expected): {opt['description']}"
-        )
-    lines.append("")
-    lines.append("Note: educational information, not SEBI-registered financial advice.")
-    return "\n".join(lines)
-
-
 def build_langchain_tools() -> list:
     """Build the list of LangChain Tool objects for the SQL agent."""
     from langchain.tools import Tool
 
     sql_tool = Tool.from_function(
-        name="sql_query_tool",
+        name="run_sql_query",
         func=_run_sql_query,
         description=(
             "Execute a read-only SQL SELECT query on the SQLite database. Tables: "
@@ -272,23 +253,16 @@ def build_langchain_tools() -> list:
         func=_pdf_ready_text,
         description="Generate a PDF-ready text block summarizing a month (YYYY-MM) for reports.",
     )
-    investment_tool = Tool.from_function(
-        name="investment_advisor",
-        func=_investment_advice,
-        description=(
-            "Suggest an asset allocation and Indian investment schemes (PPF, NPS, ELSS, "
-            "Sukanya Samriddhi, FDs, mutual funds) for an amount and a risk profile "
-            "(conservative/moderate/aggressive). Pass amount as a string number."
-        ),
-    )
     delivery_bill_tool = Tool.from_function(
         name="get_monthly_bill",
         func=_get_monthly_bill,
         description=(
             "Compute the full monthly bill breakdown for a month. Pass a single month "
             "string in YYYY-MM format (e.g. '2026-07') or a JSON object with year and month "
-            "fields. Returns milk bill, newspaper bill, servant salary total, expenses total "
-            "and grand total with details."
+            "fields. FORMULAS: Milk Bill = SUM(quantity x rate for delivered days only); "
+            "Newspaper Bill = monthly_cost x days_delivered; Grand Total = milk + newspaper + "
+            "servant salaries + expenses. Returns milk bill, newspaper bill, servant salary "
+            "total, expenses total and grand total with details."
         ),
     )
     delivery_summary_tool = Tool.from_function(
@@ -297,7 +271,7 @@ def build_langchain_tools() -> list:
         description=(
             "Return the daily delivery status for a month. Pass a single month string in "
             "YYYY-MM format (e.g. '2026-07') or a JSON object with year and month fields. "
-            "Includes milk deliveries and newspaper deliveries."
+            "Includes delivered vs missed milk days and per-paper delivered days."
         ),
     )
     missing_deliveries_tool = Tool.from_function(
@@ -314,7 +288,6 @@ def build_langchain_tools() -> list:
         insights_tool,
         summary_tool,
         pdf_tool,
-        investment_tool,
         delivery_bill_tool,
         delivery_summary_tool,
         missing_deliveries_tool,
