@@ -14,7 +14,7 @@ from app.models.user import User
 
 CATEGORIES = [
     "groceries", "utilities", "transport", "entertainment",
-    "health", "education", "household", "dining", "shopping",
+    "health", "medical", "education", "household", "dining", "shopping",
 ]
 
 SERVANTS = [
@@ -86,6 +86,22 @@ def seed_expenses(session: Session, months_back: int = 3) -> None:
                 notes="Weekly grocery run",
                 payment_mode="upi",
                 tags="groceries,weekly",
+            )
+        )
+    # Guarantee a few medical expenses this month so the category is visible
+    for day, amount, note, tag in [
+        (2, 240.0, "Doctor consultation", "medical,doctor"),
+        (9, 680.0, "Pharmacy - medicines", "medical,pharmacy"),
+        (14, 1200.0, "Diagnostic lab tests", "medical,lab"),
+    ]:
+        session.add(
+            Expense(
+                category="medical",
+                amount=amount,
+                date=current.replace(day=min(day, today.day)),
+                notes=note,
+                payment_mode="card",
+                tags=tag,
             )
         )
 

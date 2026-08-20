@@ -325,6 +325,27 @@ export interface InvestmentAdvisorRequest {
   months?: number
 }
 
+export interface MutualFundSuggestion {
+  code: string
+  name: string
+  category: string
+  nav: number
+  nav_date: string
+  returns: {
+    '1m': number | null
+    '3m': number | null
+    '6m': number | null
+    '1y': number | null
+  }
+}
+
+export interface MarketSuggestions {
+  source: string
+  as_of: string
+  funds: MutualFundSuggestion[]
+  disclaimer: string
+}
+
 export interface Page<T> {
   data: T[]
 }
@@ -335,6 +356,7 @@ export const expenseCategories = [
   'transport',
   'entertainment',
   'health',
+  'medical',
   'education',
   'household',
   'dining',

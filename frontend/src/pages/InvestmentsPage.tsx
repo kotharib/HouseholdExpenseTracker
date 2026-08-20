@@ -6,6 +6,7 @@ import DataState from '../components/DataState'
 import InvestmentAdvisor from '../components/InvestmentAdvisor'
 import InvestmentForm from '../components/InvestmentForm'
 import InvestmentList from '../components/InvestmentList'
+import MarketSuggestions from '../components/MarketSuggestions'
 import type { Investment, InvestmentInput, InvestmentSummary } from '../types'
 import { formatMoney } from '../utils/format'
 import { investmentCategoryLabelsFull } from '../utils/investmentCategories'
@@ -141,7 +142,10 @@ export default function InvestmentsPage() {
             </Card>
           </Grid>
           <Grid item xs={12} lg={4}>
-            <InvestmentAdvisor />
+            <Stack spacing={3}>
+              <InvestmentAdvisor />
+              <MarketSuggestions />
+            </Stack>
           </Grid>
         </Grid>
       )}

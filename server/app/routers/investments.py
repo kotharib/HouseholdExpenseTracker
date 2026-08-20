@@ -122,6 +122,24 @@ def investment_summary(
     }
 
 
+@router.get("/market/suggest")
+def market_suggest(
+    limit: int = 6,
+    category: str | None = None,
+    _: User = Depends(get_current_user),
+):
+    """Top mutual funds by current market value (live NAV from mfapi.in)."""
+    from app.services.market_data import MarketDataUnavailable, suggest_funds
+
+    try:
+        return suggest_funds(limit=limit, category=category)
+    except MarketDataUnavailable:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not fetch live market data right now. Please try again later.",
+        )
+
+
 @router.put("/{investment_id}", response_model=InvestmentRead)
 def update_investment(
     investment_id: int,

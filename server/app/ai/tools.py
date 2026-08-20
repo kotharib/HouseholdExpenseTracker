@@ -219,6 +219,20 @@ def _get_missing_deliveries(year: str = "", month: str = "") -> str:
         return "\n".join(lines)
 
 
+def _suggest_mutual_funds(limit: str = "6") -> str:
+    """Return mutual fund suggestions based on the current market value (live NAV)."""
+    from app.services.market_data import MarketDataUnavailable, market_text_summary
+
+    try:
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            limit = 6
+        return market_text_summary(limit=limit)
+    except MarketDataUnavailable:
+        return "I could not fetch live market data right now. Please try again later."
+
+
 def build_langchain_tools() -> list:
     """Build the list of LangChain Tool objects for the SQL agent."""
     from langchain.tools import Tool
@@ -283,6 +297,17 @@ def build_langchain_tools() -> list:
             "with year and month fields."
         ),
     )
+    mf_tool = Tool.from_function(
+        name="suggest_mutual_funds",
+        func=_suggest_mutual_funds,
+        description=(
+            "Suggest good mutual funds to invest in based on the CURRENT MARKET VALUE. "
+            "Fetches live NAV data from mfapi.in, computes 1M/3M/6M/1Y returns and returns "
+            "the top performers with their current NAV. Optional first argument is the "
+            "number of suggestions (default 6). Use this for questions about best/top "
+            "mutual funds, market-based fund recommendations, or current NAV."
+        ),
+    )
     return [
         sql_tool,
         insights_tool,
@@ -291,4 +316,5 @@ def build_langchain_tools() -> list:
         delivery_bill_tool,
         delivery_summary_tool,
         missing_deliveries_tool,
+        mf_tool,
     ]

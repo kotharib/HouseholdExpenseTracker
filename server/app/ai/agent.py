@@ -189,8 +189,10 @@ class FallbackAgent:
     def respond(self, message: str) -> str:
         lowered = message.lower().strip()
         with self._session() as session:
-            if self._is_investment_query(lowered):
+            if self._is_other_investment_query(lowered):
                 return self._investment_refusal()
+            if self._is_mutual_fund_query(lowered):
+                return self._mutual_fund_answer(lowered)
             if any(k in lowered for k in ("insight", "analys", "analyz", "overspend")):
                 return self._insight_answer(session, lowered)
             if self._is_missing_query(lowered):
@@ -350,23 +352,48 @@ class FallbackAgent:
         return any(k in text for k in ("milk", "newspaper", "paper", "delivery", "deliver", "arrive", "came", "today", "yesterday", "on "))
 
     @staticmethod
-    def _is_investment_query(text: str) -> bool:
+    def _is_mutual_fund_query(text: str) -> bool:
         return any(
             k in text
             for k in (
-                "invest", "investing", "stock", "equity", "trading", "share market",
-                "mutual fund", "mutual funds", "ppf", "nps", "sip", "elss",
-                "portfolio", "asset allocation", "sukanya",
+                "mutual fund", "mutual funds", " mf ", "sip", "flexi cap",
+                "index fund", "elss", "small cap", "large cap", "midcap",
+                "bluechip", "blue chip", "best fund", "top fund", "invest",
+            )
+        )
+
+    @staticmethod
+    def _is_other_investment_query(text: str) -> bool:
+        return any(
+            k in text
+            for k in (
+                "stock", "equity", "trading", "share market", "ppf", "nps",
+                "fixed deposit", "sukanya", "asset allocation", "gold",
             )
         )
 
     def _investment_refusal(self) -> str:
         return (
-            "I can't recommend specific investments or financial products — I'm focused "
-            "on your household tracking and billing data. "
-            "I can instead help with your milk and newspaper deliveries, monthly bills, "
-            "expenses, and servant salaries."
+            "I can't recommend specific investment products other than mutual funds — "
+            "I'm focused on your household tracking and billing data. "
+            "I can suggest mutual funds based on the current market value, or help with "
+            "your milk and newspaper deliveries, monthly bills, expenses, and servant salaries."
         )
+
+    def _mutual_fund_answer(self, text: str) -> str:
+        from app.services.market_data import MarketDataUnavailable, market_text_summary
+
+        try:
+            limit = 6
+            m = re.search(r"\b(\d{1,2})\b", text)
+            if m and 1 <= int(m.group(1)) <= 15:
+                limit = int(m.group(1))
+            return market_text_summary(limit=limit)
+        except MarketDataUnavailable:
+            return (
+                "I don't have enough data to answer that precisely — live market data is "
+                "temporarily unavailable. Please try again later."
+            )
 
     # ------------------------------------------------ shared reasoning blocks
     def _reason_blocks(self) -> list[str]:
@@ -1020,7 +1047,8 @@ class FallbackAgent:
             "  - What happened on August 5 for deliveries?\n"
             "  - Why is my bill higher this month?\n"
             "  - Generate my monthly bill summary.\n"
-            "  - Give me financial insights.\n\n"
+            "  - Give me financial insights.\n"
+            "  - Suggest good mutual funds to invest (based on current market value).\n\n"
             f"Quick status for {data['month_label']}: spent {format_money(data['current_month_total'])}, "
             f"pending payments {format_money(data['pending']['total'])}.\n\n"
             f"(Note: local LLM via Ollama is {'connected' if ollama_available() else 'not detected'} — "
