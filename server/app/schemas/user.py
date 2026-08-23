@@ -2,6 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.auth.roles import SELF_REGISTERABLE_ROLES, VALID_ROLES
+
 
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
@@ -17,8 +19,8 @@ class RegisterRequest(BaseModel):
     @classmethod
     def normalize_role(cls, v: str) -> str:
         v = v.strip().lower()
-        if v not in {"admin", "user"}:
-            raise ValueError("role must be 'admin' or 'user'")
+        if v not in SELF_REGISTERABLE_ROLES:
+            raise ValueError("role must be 'user' or 'viewer'")
         return v
 
 
@@ -37,6 +39,33 @@ class UserPublic(BaseModel):
     id: int
     username: str
     role: str
+
+
+class RoleInfo(BaseModel):
+    key: str
+    description: str
+
+
+class RolesResponse(BaseModel):
+    roles: list[RoleInfo]
+
+
+class UserAdminResponse(BaseModel):
+    id: int
+    username: str
+    role: str
+
+
+class RoleUpdateRequest(BaseModel):
+    role: str
+
+    @field_validator("role")
+    @classmethod
+    def normalize_role(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in VALID_ROLES:
+            raise ValueError("role must be 'admin', 'user' or 'viewer'")
+        return v
 
 
 TokenResponse.model_rebuild()

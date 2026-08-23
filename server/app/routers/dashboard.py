@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import viewer_allowed
 from app.database import get_session
 from app.models.user import User
 from app.schemas.dashboard import (
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 @router.get("/summary", response_model=DashboardSummary)
-def get_summary(session: Session = Depends(get_session), _: User = Depends(get_current_user)):
+def get_summary(session: Session = Depends(get_session), _: User = Depends(viewer_allowed)):
     current_month = date.today().strftime("%Y-%m")
     from app.utils.helpers import last_month
 
@@ -58,7 +58,7 @@ def get_summary(session: Session = Depends(get_session), _: User = Depends(get_c
 def monthly_expenses(
     month: str,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     month = validate_month(month)
     from app.models.expense import Expense
@@ -88,7 +88,7 @@ def monthly_expenses(
 
 
 @router.get("/pending-payments", response_model=PendingPaymentsResponse)
-def pending_payments(session: Session = Depends(get_session), _: User = Depends(get_current_user)):
+def pending_payments(session: Session = Depends(get_session), _: User = Depends(viewer_allowed)):
     items = insights.all_pending(session)
     return PendingPaymentsResponse(
         items=[PendingPayment(**i) for i in items],

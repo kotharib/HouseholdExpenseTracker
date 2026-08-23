@@ -13,9 +13,10 @@ import {
   Typography,
 } from '@mui/material'
 import { Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Edit as EditIcon, FilterAltOff as FilterAltOffIcon } from '@mui/icons-material'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { Milk } from '../types'
 import { formatMoney } from '../utils/format'
+import { usePermissions } from '../utils/roles'
 import { useTableControls } from '../utils/useTableControls'
 import { FilterCell, SortableHeader } from './TableControls'
 
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, onDeleteAll, onToggleDelivered }: Props) {
+  const { canDelete, canWrite } = usePermissions()
   const [selected, setSelected] = useState<number[]>([])
   const { sortColumn, sortDirection, filters, sortedAndFiltered, handleSort, handleFilter, clearFilters, hasActiveFilter } =
     useTableControls<Milk>(deliveries)
@@ -72,33 +74,37 @@ export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, o
               Clear
             </Button>
           )}
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            startIcon={<DeleteSweepIcon />}
-            disabled={selected.length === 0}
-            onClick={() => {
-              onBulkDelete(selected)
-              setSelected([])
-            }}
-          >
-            Delete selected ({selected.length})
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            disabled={deliveries.length === 0}
-            onClick={() => {
-              if (window.confirm(`Delete ALL ${deliveries.length} milk deliveries? This cannot be undone.`)) {
-                onDeleteAll()
-                setSelected([])
-              }
-            }}
-          >
-            Delete all
-          </Button>
+          {canDelete && (
+            <Fragment>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                startIcon={<DeleteSweepIcon />}
+                disabled={selected.length === 0}
+                onClick={() => {
+                  onBulkDelete(selected)
+                  setSelected([])
+                }}
+              >
+                Delete selected ({selected.length})
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                disabled={deliveries.length === 0}
+                onClick={() => {
+                  if (window.confirm(`Delete ALL ${deliveries.length} milk deliveries? This cannot be undone.`)) {
+                    onDeleteAll()
+                    setSelected([])
+                  }
+                }}
+              >
+                Delete all
+              </Button>
+            </Fragment>
+          )}
         </Stack>
       </Stack>
       <TableContainer>
@@ -155,18 +161,22 @@ export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, o
                 <TableCell align="right">{formatMoney(d.rate)}</TableCell>
                 <TableCell align="right">{formatMoney(d.total)}</TableCell>
                 <TableCell>
-                  <Checkbox size="small" checked={d.is_delivered} onChange={() => onToggleDelivered(d)} title="Toggle delivered" />
+                  <Checkbox size="small" checked={d.is_delivered} onChange={() => onToggleDelivered(d)} disabled={!canWrite} title="Toggle delivered" />
                 </TableCell>
                 <TableCell>
                   <Chip label={d.payment_status} size="small" color={d.payment_status === 'paid' ? 'success' : 'warning'} />
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={() => onEdit(d)} aria-label="edit">
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => onDelete(d)} aria-label="delete">
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  {canWrite && (
+                    <IconButton size="small" onClick={() => onEdit(d)} aria-label="edit">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                  {canDelete && (
+                    <IconButton size="small" onClick={() => onDelete(d)} aria-label="delete">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

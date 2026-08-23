@@ -33,12 +33,16 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
-def create_access_token(subject: str, role: str, expires_minutes: int | None = None) -> str:
+def create_access_token(
+    user_id: int, username: str, role: str, expires_minutes: int | None = None
+) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     payload: dict[str, Any] = {
-        "sub": subject,
+        "sub": str(user_id),
+        "user_id": user_id,
+        "username": username,
         "role": role,
         "iat": datetime.now(timezone.utc),
         "exp": expire,

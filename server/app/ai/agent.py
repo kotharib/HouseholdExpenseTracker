@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from datetime import date, timedelta
 
+from app.ai.context import AI_DENIED, get_ai_role, set_ai_role
+from app.auth.roles import CHAT_ROLES
 from app.config import settings
 from app.database import engine
 from app.services import insights as insight_service
@@ -117,7 +119,17 @@ class AIAgent:
     def is_available(self) -> bool:
         return self.llm_available and self._executor is not None
 
-    def chat(self, message: str, history: list[dict] | None = None) -> str:
+    def chat(
+        self,
+        message: str,
+        history: list[dict] | None = None,
+        role: str | None = None,
+    ) -> str:
+        if role is None:
+            role = get_ai_role()
+        set_ai_role(role)
+        if role not in CHAT_ROLES:
+            return AI_DENIED
         if self.is_available:
             try:
                 history = history or []
@@ -137,7 +149,10 @@ class AIAgent:
                 pass
         return FallbackAgent().respond(message)
 
-    def insights(self) -> str:
+    def insights(self, role: str | None = None) -> str:
+        if role is None:
+            role = get_ai_role()
+        set_ai_role(role)
         if self.is_available:
             try:
                 result = self._executor.invoke(
@@ -158,8 +173,11 @@ class AIAgent:
 
         return _financial_insights("")
 
-    def monthly_report(self, month: str | None = None) -> str:
+    def monthly_report(self, month: str | None = None, role: str | None = None) -> str:
         target = month or date.today().strftime("%Y-%m")
+        if role is None:
+            role = get_ai_role()
+        set_ai_role(role)
         if self.is_available:
             try:
                 result = self._executor.invoke(
@@ -186,7 +204,12 @@ class AIAgent:
 # ---------------------------------------------------------------------------
 class FallbackAgent:
     # ------------------------------------------------------------- responses
-    def respond(self, message: str) -> str:
+    def respond(self, message: str, role: str | None = None) -> str:
+        if role is None:
+            role = get_ai_role()
+        set_ai_role(role)
+        if role not in CHAT_ROLES:
+            return AI_DENIED
         lowered = message.lower().strip()
         with self._session() as session:
             if self._is_other_investment_query(lowered):

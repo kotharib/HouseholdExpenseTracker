@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from sqlmodel import Session, select
 
 from app.ai.agent import agent
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import viewer_allowed
 from app.database import engine, get_session
 from app.models.expense import Expense
 from app.models.user import User
@@ -42,13 +42,13 @@ def _month_expenses(session: Session, month: str) -> list[dict]:
 @router.get("/monthly/pdf")
 async def monthly_pdf(
     month: str,
-    _: User = Depends(get_current_user),
+    user: User = Depends(viewer_allowed),
 ):
     month = validate_month(month)
     with Session(engine) as session:
         expenses = _month_expenses(session, month)
         pending = insights.all_pending(session)
-        ai_text = await _run_agent_monthly(month)
+        ai_text = await _run_agent_monthly(month, user.role)
         pdf_bytes = generate_monthly_pdf(month, expenses, pending, ai_text)
     headers = {
         "Content-Disposition": f'attachment; filename="household-report-{month}.pdf"',
@@ -61,13 +61,13 @@ async def monthly_pdf(
 async def auto_report(
     month: str | None = None,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    user: User = Depends(viewer_allowed),
 ):
     target = validate_month(month) if month else date.today().strftime("%Y-%m")
     data = insights.compute_insights(session, target)
     pending = insights.all_pending(session)
     bill = delivery_service.monthly_bill(session, target)
-    ai_text = await _run_agent_monthly(target)
+    ai_text = await _run_agent_monthly(target, user.role)
 
     sections = [
         f"Total expenses in {month_name(target)}: {format_money(data['current_month_total'])} "
@@ -122,7 +122,7 @@ async def auto_report(
     )
 
 
-async def _run_agent_monthly(month: str) -> str:
+async def _run_agent_monthly(month: str, role: str | None = None) -> str:
     import asyncio
 
-    return await asyncio.to_thread(agent.monthly_report, month)
+    return await asyncio.to_thread(agent.monthly_report, month, role)

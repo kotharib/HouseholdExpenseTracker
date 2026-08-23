@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import require_admin, user_required, viewer_allowed
 from app.database import get_session
 from app.models.milk import MilkDelivery
 from app.models.user import User
@@ -26,7 +26,7 @@ def daily_milk_deliveries(
     year: int,
     month: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     month_str = validate_month(f"{year}-{month:02d}")
     return MilkDailyResponse(**delivery_service.milk_daily_summary(session, month_str))
@@ -38,7 +38,7 @@ def list_milk(
     supplier: str | None = None,
     payment_status: str | None = None,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     if month:
         validate_month(month)
@@ -56,7 +56,7 @@ def list_milk(
 def create_milk(
     payload: MilkCreate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     delivery = MilkDelivery(**payload.model_dump())
     session.add(delivery)
@@ -69,7 +69,7 @@ def create_milk(
 def bulk_delete_milk(
     payload: BulkDeleteRequest,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     if payload.all:
         rows = session.exec(select(MilkDelivery)).all()
@@ -88,7 +88,7 @@ def update_milk(
     milk_id: int,
     payload: MilkUpdate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     delivery = _get_or_404(session, milk_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -103,7 +103,7 @@ def update_milk(
 def delete_milk(
     milk_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     delivery = _get_or_404(session, milk_id)
     session.delete(delivery)

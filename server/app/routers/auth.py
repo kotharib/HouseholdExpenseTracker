@@ -23,7 +23,7 @@ def register(payload: RegisterRequest, session: Session = Depends(get_session)):
     session.add(user)
     session.commit()
     session.refresh(user)
-    token = create_access_token(str(user.id), user.role)
+    token = create_access_token(user.id, user.username, user.role)
     return TokenResponse(
         access_token=token,
         user=UserPublic(id=user.id, username=user.username, role=user.role),
@@ -38,7 +38,7 @@ def login(payload: LoginRequest, session: Session = Depends(get_session)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
-    token = create_access_token(str(user.id), user.role)
+    token = create_access_token(user.id, user.username, user.role)
     return TokenResponse(
         access_token=token,
         user=UserPublic(id=user.id, username=user.username, role=user.role),

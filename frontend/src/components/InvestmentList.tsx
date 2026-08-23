@@ -13,10 +13,11 @@ import {
   Typography,
 } from '@mui/material'
 import { Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Edit as EditIcon, FilterAltOff as FilterAltOffIcon } from '@mui/icons-material'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { Investment } from '../types'
 import { formatMoney } from '../utils/format'
 import { investmentCategoryLabel } from '../utils/investmentCategories'
+import { usePermissions } from '../utils/roles'
 import { useTableControls } from '../utils/useTableControls'
 import { FilterCell, SortableHeader } from './TableControls'
 
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function InvestmentList({ investments, onEdit, onDelete, onBulkDelete, onDeleteAll }: Props) {
+  const { canDelete, canWrite } = usePermissions()
   const [selected, setSelected] = useState<number[]>([])
   const { sortColumn, sortDirection, filters, sortedAndFiltered, handleSort, handleFilter, clearFilters, hasActiveFilter } =
     useTableControls<Investment>(investments)
@@ -72,33 +74,37 @@ export default function InvestmentList({ investments, onEdit, onDelete, onBulkDe
               Clear
             </Button>
           )}
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            startIcon={<DeleteSweepIcon />}
-            disabled={selected.length === 0}
-            onClick={() => {
-              onBulkDelete(selected)
-              setSelected([])
-            }}
-          >
-            Delete selected ({selected.length})
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            disabled={investments.length === 0}
-            onClick={() => {
-              if (window.confirm(`Delete ALL ${investments.length} investments? This cannot be undone.`)) {
-                onDeleteAll()
-                setSelected([])
-              }
-            }}
-          >
-            Delete all
-          </Button>
+          {canDelete && (
+            <Fragment>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                startIcon={<DeleteSweepIcon />}
+                disabled={selected.length === 0}
+                onClick={() => {
+                  onBulkDelete(selected)
+                  setSelected([])
+                }}
+              >
+                Delete selected ({selected.length})
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                disabled={investments.length === 0}
+                onClick={() => {
+                  if (window.confirm(`Delete ALL ${investments.length} investments? This cannot be undone.`)) {
+                    onDeleteAll()
+                    setSelected([])
+                  }
+                }}
+              >
+                Delete all
+              </Button>
+            </Fragment>
+          )}
         </Stack>
       </Stack>
       <TableContainer>
@@ -156,12 +162,16 @@ export default function InvestmentList({ investments, onEdit, onDelete, onBulkDe
                   {inv.notes || '—'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={() => onEdit(inv)} aria-label="edit">
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => onDelete(inv)} aria-label="delete">
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  {canWrite && (
+                    <IconButton size="small" onClick={() => onEdit(inv)} aria-label="edit">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                  {canDelete && (
+                    <IconButton size="small" onClick={() => onDelete(inv)} aria-label="delete">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import require_admin, user_required, viewer_allowed
 from app.database import get_session
 from app.models.newspaper import NewspaperDelivery
 from app.models.user import User
@@ -29,7 +29,7 @@ def daily_newspaper_deliveries(
     year: int,
     month: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     month_str = validate_month(f"{year}-{month:02d}")
     return NewspaperDailyResponse(**delivery_service.newspaper_daily_summary(session, month_str))
@@ -40,7 +40,7 @@ def list_newspaper(
     month: str | None = None,
     payment_status: str | None = None,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     if month:
         validate_month(month)
@@ -82,7 +82,7 @@ def _generate_month_records(payload: NewspaperCreate, session: Session) -> list[
 def create_newspaper(
     payload: NewspaperCreate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     data = payload.model_dump(exclude_unset=True)
     if "date" in data:
@@ -100,7 +100,7 @@ def create_newspaper(
 def bulk_delete_newspaper(
     payload: BulkDeleteRequest,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     if payload.all:
         rows = session.exec(select(NewspaperDelivery)).all()
@@ -119,7 +119,7 @@ def update_newspaper(
     paper_id: int,
     payload: NewspaperUpdate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     paper = _get_or_404(session, paper_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -134,7 +134,7 @@ def update_newspaper(
 def delete_newspaper(
     paper_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     paper = _get_or_404(session, paper_id)
     session.delete(paper)

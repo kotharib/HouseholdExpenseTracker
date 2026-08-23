@@ -18,6 +18,7 @@ from app.routers import (
     milk,
     newspaper,
     reports,
+    roles,
     servants,
 )
 from app.services.seed import run_seed
@@ -56,7 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, expenses.router, servants.router, milk.router,
+for r in (auth.router, roles.router, expenses.router, servants.router, milk.router,
           newspaper.router, dashboard.router, ai.router, reports.router,
           diagrams.router, investments.router, billing.router):
     app.include_router(r)

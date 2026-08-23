@@ -8,7 +8,8 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session
 
 from app.ai.agent import agent
-from app.auth.dependencies import get_current_user
+from app.ai.context import set_ai_role
+from app.auth.dependencies import user_required, viewer_allowed
 from app.database import get_session
 from app.models.user import User
 from app.schemas.chat import (
@@ -21,6 +22,18 @@ from app.utils.helpers import validate_month
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
+def _ai_chat_user(user: User = Depends(user_required)) -> User:
+    """AI chat requires admin or user role; record role for tool checks."""
+    set_ai_role(user.role)
+    return user
+
+
+def _ai_read_user(user: User = Depends(viewer_allowed)) -> User:
+    """Read-only AI summaries are open to any authenticated role."""
+    set_ai_role(user.role)
+    return user
+
+
 def _stream_events(text: str):
     tokens = re.split(r"(\s+)", text)
     for token in tokens:
@@ -31,11 +44,14 @@ def _stream_events(text: str):
 
 
 @router.post("/chat")
-async def chat(payload: ChatRequest, _: User = Depends(get_current_user)):
+async def chat(
+    payload: ChatRequest,
+    user: User = Depends(_ai_chat_user),
+):
     history = [m.model_dump() for m in payload.history]
 
     def run() -> str:
-        return agent.chat(payload.message, history)
+        return agent.chat(payload.message, history, user.role)
 
     response_text = await asyncio.to_thread(run)
 
@@ -56,8 +72,11 @@ async def chat(payload: ChatRequest, _: User = Depends(get_current_user)):
 
 
 @router.get("/insights", response_model=AiInsightsResponse)
-async def insights(session: Session = Depends(get_session), _: User = Depends(get_current_user)):
-    text = await asyncio.to_thread(agent.insights)
+async def insights(
+    session: Session = Depends(get_session),
+    user: User = Depends(_ai_read_user),
+):
+    text = await asyncio.to_thread(agent.insights, user.role)
     from app.services.insights import compute_insights
 
     data = compute_insights(session)
@@ -71,8 +90,8 @@ async def insights(session: Session = Depends(get_session), _: User = Depends(ge
 @router.get("/report/monthly", response_model=AiMonthlyReportResponse)
 async def monthly_report(
     month: str | None = None,
-    _: User = Depends(get_current_user),
+    user: User = Depends(_ai_read_user),
 ):
     target = validate_month(month) if month else date.today().strftime("%Y-%m")
-    text = await asyncio.to_thread(agent.monthly_report, target)
+    text = await asyncio.to_thread(agent.monthly_report, target, user.role)
     return AiMonthlyReportResponse(month=target, report=text, llm_available=agent.is_available)

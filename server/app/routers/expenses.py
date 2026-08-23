@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import require_admin, user_required, viewer_allowed
 from app.database import get_session
 from app.models.expense import Expense
 from app.models.user import User
@@ -24,7 +24,7 @@ def list_expenses(
     month: str | None = None,
     category: str | None = None,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     stmt = select(Expense)
     if month:
@@ -40,7 +40,7 @@ def list_expenses(
 def create_expense(
     payload: ExpenseCreate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     expense = Expense(**payload.model_dump())
     session.add(expense)
@@ -53,7 +53,7 @@ def create_expense(
 def bulk_delete_expenses(
     payload: BulkDeleteRequest,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     if payload.all:
         rows = session.exec(select(Expense)).all()
@@ -72,7 +72,7 @@ def update_expense(
     expense_id: int,
     payload: ExpenseUpdate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     expense = _get_or_404(session, expense_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -87,7 +87,7 @@ def update_expense(
 def delete_expense(
     expense_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     expense = _get_or_404(session, expense_id)
     session.delete(expense)

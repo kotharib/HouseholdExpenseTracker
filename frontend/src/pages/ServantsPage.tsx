@@ -5,9 +5,11 @@ import { api, getErrorMessage } from '../api/client'
 import DataState from '../components/DataState'
 import ServantForm from '../components/ServantForm'
 import ServantList from '../components/ServantList'
+import { usePermissions } from '../utils/roles'
 import type { Servant, ServantInput } from '../types'
 
 export default function ServantsPage() {
+  const { canManageServants } = usePermissions()
   const [servants, setServants] = useState<Servant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -83,16 +85,18 @@ export default function ServantsPage() {
         Servants
       </Typography>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setEditing(null)
-            setOpen(true)
-          }}
-        >
-          Add Servant
-        </Button>
+        {canManageServants && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setEditing(null)
+              setOpen(true)
+            }}
+          >
+            Add Servant
+          </Button>
+        )}
       </Stack>
       <DataState loading={loading} error={error} onRetry={load} />
       {!loading && !error && (

@@ -4,13 +4,19 @@ import { Article as ArticleIcon, CalendarMonth as CalendarMonthIcon, Chat as Cha
 import { IconButton, Stack, Tooltip } from '@mui/material'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
+import { ROLE_LABELS } from '../utils/roles'
 import type { ComponentType } from 'react'
+import type { Role } from '../types'
 
 interface NavItem {
   label: string
   path: string
   icon: ComponentType<{ fontSize?: 'small' | 'inherit' | 'medium' | 'large' }>
+  roles: Role[]
 }
+
+const ALL_ROLES: Role[] = ['admin', 'user', 'viewer']
+const MANAGER_ROLES: Role[] = ['admin', 'user']
 
 const drawerWidth = 248
 
@@ -141,17 +147,20 @@ export default function Layout() {
   const location = useLocation()
 
   const items: NavItem[] = [
-    { label: 'Dashboard', path: '/', icon: DashboardIcon },
-    { label: 'Expenses', path: '/expenses', icon: ReceiptIcon },
-    { label: 'Investments', path: '/investments', icon: ShowChartIcon },
-    { label: 'Servants', path: '/servants', icon: PeopleIcon },
-    { label: 'Milk', path: '/milk', icon: WaterDropIcon },
-    { label: 'Newspaper', path: '/newspaper', icon: ArticleIcon },
-    { label: 'Monthly Bill', path: '/billing', icon: CalendarMonthIcon },
-    { label: 'AI Chat', path: '/chat', icon: ChatIcon },
-    { label: 'Reports', path: '/reports', icon: DescriptionIcon },
-    { label: 'Settings', path: '/settings', icon: SettingsIcon },
+    { label: 'Dashboard', path: '/', icon: DashboardIcon, roles: ALL_ROLES },
+    { label: 'Expenses', path: '/expenses', icon: ReceiptIcon, roles: MANAGER_ROLES },
+    { label: 'Investments', path: '/investments', icon: ShowChartIcon, roles: MANAGER_ROLES },
+    { label: 'Servants', path: '/servants', icon: PeopleIcon, roles: MANAGER_ROLES },
+    { label: 'Milk', path: '/milk', icon: WaterDropIcon, roles: MANAGER_ROLES },
+    { label: 'Newspaper', path: '/newspaper', icon: ArticleIcon, roles: MANAGER_ROLES },
+    { label: 'Monthly Bill', path: '/billing', icon: CalendarMonthIcon, roles: MANAGER_ROLES },
+    { label: 'AI Chat', path: '/chat', icon: ChatIcon, roles: MANAGER_ROLES },
+    { label: 'Reports', path: '/reports', icon: DescriptionIcon, roles: ALL_ROLES },
+    { label: 'Settings', path: '/settings', icon: SettingsIcon, roles: MANAGER_ROLES },
   ]
+
+  const role: Role = user?.role ?? 'viewer'
+  const visibleItems = items.filter((item) => item.roles.includes(role))
 
   return (
     <div style={{ display: 'flex' }}>
@@ -162,7 +171,7 @@ export default function Layout() {
           </BrandBadge>
           <BrandText>Household Finance</BrandText>
         </Brand>
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon
           return (
             <StyledLink key={item.path} to={item.path} end={item.path === '/'}>
@@ -175,7 +184,7 @@ export default function Layout() {
       <Main>
         <TopBar>
           <div style={{ fontSize: 14, color: 'text.secondary' }}>
-            Welcome, <strong>{user?.username}</strong> ({user?.role})
+            Welcome, <strong>{user?.username}</strong> ({ROLE_LABELS[user?.role ?? 'viewer']})
           </div>
           <Stack direction="row" spacing={0.5}>
             <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>

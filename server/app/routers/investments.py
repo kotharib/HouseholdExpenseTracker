@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import require_admin, user_required, viewer_allowed
 from app.database import get_session
 from app.models.investment import Investment
 from app.models.user import User
@@ -36,7 +36,7 @@ def list_investments(
     month: str | None = None,
     category: str | None = None,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     if month:
         validate_month(month)
@@ -52,7 +52,7 @@ def list_investments(
 def create_investment(
     payload: InvestmentCreate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     investment = Investment(**payload.model_dump())
     session.add(investment)
@@ -65,7 +65,7 @@ def create_investment(
 def bulk_delete_investments(
     payload: BulkDeleteRequest,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     if payload.all:
         rows = session.exec(select(Investment)).all()
@@ -80,12 +80,12 @@ def bulk_delete_investments(
 
 
 @router.get("/options", response_model=list[dict])
-def investment_options(_: User = Depends(get_current_user)):
+def investment_options(_: User = Depends(viewer_allowed)):
     return investment_advisor.investment_catalog()
 
 
 @router.get("/profiles", response_model=list[dict])
-def risk_profiles(_: User = Depends(get_current_user)):
+def risk_profiles(_: User = Depends(viewer_allowed)):
     return investment_advisor.risk_profiles()
 
 
@@ -93,7 +93,7 @@ def risk_profiles(_: User = Depends(get_current_user)):
 def get_advisor(
     payload: AdvisorRequest,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     allocation = investment_advisor.build_allocation(payload.amount, payload.profile)
     schemes = investment_advisor.suggested_schemes(allocation, limit=6)
@@ -108,7 +108,7 @@ def get_advisor(
 @router.get("/summary")
 def investment_summary(
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     rows = session.exec(select(Investment)).all()
     total = round(sum(r.amount for r in rows), 2)
@@ -126,7 +126,7 @@ def investment_summary(
 def market_suggest(
     limit: int = 6,
     category: str | None = None,
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     """Top mutual funds by current market value (live NAV from mfapi.in)."""
     from app.services.market_data import MarketDataUnavailable, suggest_funds
@@ -145,7 +145,7 @@ def update_investment(
     investment_id: int,
     payload: InvestmentUpdate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(user_required),
 ):
     investment = _get_or_404(session, investment_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -160,7 +160,7 @@ def update_investment(
 def delete_investment(
     investment_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     investment = _get_or_404(session, investment_id)
     session.delete(investment)

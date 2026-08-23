@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import viewer_allowed
 from app.diagrams import generators
 from app.models.user import User
 
@@ -19,7 +19,7 @@ class DiagramResponse(BaseModel):
 def get_diagram(
     diagram_name: str,
     format: str = "ascii",
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     if diagram_name not in generators.GENERATORS:
         raise HTTPException(status_code=404, detail="Unknown diagram. Use architecture, er or ai-workflow")

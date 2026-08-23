@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import require_admin, viewer_allowed
 from app.database import get_session
 from app.models.servant import Servant
 from app.models.user import User
@@ -23,7 +23,7 @@ def list_servants(
     role: str | None = None,
     payment_status: str | None = None,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     stmt = select(Servant)
     if role:
@@ -37,7 +37,7 @@ def list_servants(
 def create_servant(
     payload: ServantCreate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     servant = Servant(**payload.model_dump())
     session.add(servant)
@@ -50,7 +50,7 @@ def create_servant(
 def bulk_delete_servants(
     payload: BulkDeleteRequest,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     if payload.all:
         rows = session.exec(select(Servant)).all()
@@ -69,7 +69,7 @@ def update_servant(
     servant_id: int,
     payload: ServantUpdate,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     servant = _get_or_404(session, servant_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -84,7 +84,7 @@ def update_servant(
 def delete_servant(
     servant_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     servant = _get_or_404(session, servant_id)
     session.delete(servant)

@@ -4,20 +4,49 @@ All tools are strictly read-only and data-grounded. The agent must never answer
 from memory or assumptions: for any question about bills, deliveries or missed
 deliveries it calls the dedicated tool below, and for ad-hoc data questions it
 uses run_sql_query.
+
+Every tool enforces a role check before executing (see app/ai/context). The
+free-form SQL tool additionally blocks access to the users table for non-admin
+roles so the agent can never leak another user's account data.
 """
 
 from __future__ import annotations
 
+import re
+
 from sqlmodel import Session
 
+from app.ai.context import AI_DENIED, get_ai_role
+from app.auth.roles import ROLE_ADMIN
 from app.database import engine
 from app.services import delivery as delivery_service
 from app.services import insights as insight_service
 from app.utils.helpers import format_money
 
 
+def _deny_if_no_role() -> str | None:
+    """Return a denial message when no authenticated AI role is present."""
+    if get_ai_role() is None:
+        return AI_DENIED
+    return None
+
+
+def _sql_role_guard(sql: str) -> str | None:
+    """Role check for the free-form SQL tool."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
+    role = get_ai_role()
+    if role != ROLE_ADMIN and re.search(r"\b(users|password_hash)\b", sql, re.IGNORECASE):
+        return AI_DENIED
+    return None
+
+
 def _run_sql_query(sql: str) -> str:
     """Execute a read-only SQL query against SQLite and return results."""
+    denied = _sql_role_guard(sql)
+    if denied:
+        return denied
     sql_lower = sql.strip().lower()
     if sql_lower and not any(sql_lower.startswith(k) for k in ("select", "pragma", "with")):
         raise ValueError("Only SELECT queries are allowed")
@@ -40,6 +69,9 @@ def _run_sql_query(sql: str) -> str:
 
 def _financial_insights(month: str = "") -> str:
     """Return AI-readable financial insights for a month (default: current)."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
     with Session(engine) as session:
         data = insight_service.compute_insights(session, month or None)
         lines = [
@@ -64,6 +96,9 @@ def _financial_insights(month: str = "") -> str:
 
 def _monthly_summary(month: str = "") -> str:
     """Generate a human-readable monthly financial summary."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
     with Session(engine) as session:
         data = insight_service.compute_insights(session, month or None)
         lines = [
@@ -89,6 +124,9 @@ def _monthly_summary(month: str = "") -> str:
 
 def _pdf_ready_text(month: str = "") -> str:
     """Generate PDF-ready summary blocks for a month."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
     with Session(engine) as session:
         data = insight_service.compute_insights(session, month or None)
         return (
@@ -154,6 +192,9 @@ def _resolve_tool_month(year: str, month: str) -> str:
 
 def _get_monthly_bill(year: str = "", month: str = "") -> str:
     """Return the full monthly bill breakdown for a given year/month."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
     target = _resolve_tool_month(year, month)
     with Session(engine) as session:
         data = delivery_service.monthly_bill(session, target)
@@ -185,6 +226,9 @@ def _get_monthly_bill(year: str = "", month: str = "") -> str:
 
 def _get_delivery_summary(year: str = "", month: str = "") -> str:
     """Return a daily delivery status summary for a given year/month."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
     target = _resolve_tool_month(year, month)
     with Session(engine) as session:
         milk = delivery_service.milk_daily_summary(session, target)
@@ -208,6 +252,9 @@ def _get_delivery_summary(year: str = "", month: str = "") -> str:
 
 def _get_missing_deliveries(year: str = "", month: str = "") -> str:
     """Return the list of days where milk or newspaper was not delivered."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
     target = _resolve_tool_month(year, month)
     with Session(engine) as session:
         missed = delivery_service.missing_deliveries(session, target)
@@ -221,6 +268,9 @@ def _get_missing_deliveries(year: str = "", month: str = "") -> str:
 
 def _suggest_mutual_funds(limit: str = "6") -> str:
     """Return mutual fund suggestions based on the current market value (live NAV)."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
     from app.services.market_data import MarketDataUnavailable, market_text_summary
 
     try:

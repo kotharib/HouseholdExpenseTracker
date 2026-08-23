@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from sqlmodel import Session
 
 from app.ai.agent import agent
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import viewer_allowed
 from app.database import get_session
 from app.models.user import User
 from app.reports.pdf import generate_billing_pdf
@@ -31,7 +31,7 @@ def monthly_bill(
     year: int,
     month: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(viewer_allowed),
 ):
     if month < 1 or month > 12:
         raise HTTPException(status_code=400, detail="month must be between 1 and 12")
@@ -44,7 +44,7 @@ async def monthly_bill_pdf(
     year: int,
     month: int,
     session: Session = Depends(get_session),
-    _: User = Depends(get_current_user),
+    user: User = Depends(viewer_allowed),
 ):
     if month < 1 or month > 12:
         raise HTTPException(status_code=400, detail="month must be between 1 and 12")
@@ -53,7 +53,7 @@ async def monthly_bill_pdf(
     milk_daily = delivery_service.milk_daily_summary(session, month_str)
     newspaper_daily = delivery_service.newspaper_daily_summary(session, month_str)
     insights = insight_service.compute_insights(session, month_str)
-    ai_text = await asyncio.to_thread(agent.monthly_report, month_str)
+    ai_text = await asyncio.to_thread(agent.monthly_report, month_str, user.role)
     pdf_bytes = generate_billing_pdf(
         month_str,
         bill,

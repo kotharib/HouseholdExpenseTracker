@@ -1,7 +1,9 @@
+export type Role = 'admin' | 'user' | 'viewer'
+
 export interface User {
   id: number
   username: string
-  role: 'admin' | 'user'
+  role: Role
 }
 
 export interface AuthResponse {

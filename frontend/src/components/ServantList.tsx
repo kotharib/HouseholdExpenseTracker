@@ -13,9 +13,10 @@ import {
   Typography,
 } from '@mui/material'
 import { Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Edit as EditIcon, FilterAltOff as FilterAltOffIcon } from '@mui/icons-material'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { Servant } from '../types'
 import { formatMoney } from '../utils/format'
+import { usePermissions } from '../utils/roles'
 import { useTableControls } from '../utils/useTableControls'
 import { FilterCell, SortableHeader } from './TableControls'
 
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function ServantList({ servants, onEdit, onDelete, onBulkDelete, onDeleteAll }: Props) {
+  const { canDelete, canManageServants } = usePermissions()
   const [selected, setSelected] = useState<number[]>([])
   const { sortColumn, sortDirection, filters, sortedAndFiltered, handleSort, handleFilter, clearFilters, hasActiveFilter } =
     useTableControls<Servant>(servants)
@@ -69,33 +71,37 @@ export default function ServantList({ servants, onEdit, onDelete, onBulkDelete, 
               Clear
             </Button>
           )}
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            startIcon={<DeleteSweepIcon />}
-            disabled={selected.length === 0}
-            onClick={() => {
-              onBulkDelete(selected)
-              setSelected([])
-            }}
-          >
-            Delete selected ({selected.length})
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            disabled={servants.length === 0}
-            onClick={() => {
-              if (window.confirm(`Delete ALL ${servants.length} servants? This cannot be undone.`)) {
-                onDeleteAll()
-                setSelected([])
-              }
-            }}
-          >
-            Delete all
-          </Button>
+          {canDelete && (
+            <Fragment>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                startIcon={<DeleteSweepIcon />}
+                disabled={selected.length === 0}
+                onClick={() => {
+                  onBulkDelete(selected)
+                  setSelected([])
+                }}
+              >
+                Delete selected ({selected.length})
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                disabled={servants.length === 0}
+                onClick={() => {
+                  if (window.confirm(`Delete ALL ${servants.length} servants? This cannot be undone.`)) {
+                    onDeleteAll()
+                    setSelected([])
+                  }
+                }}
+              >
+                Delete all
+              </Button>
+            </Fragment>
+          )}
         </Stack>
       </Stack>
       <TableContainer>
@@ -146,12 +152,16 @@ export default function ServantList({ servants, onEdit, onDelete, onBulkDelete, 
                   <Chip label={s.payment_status} size="small" color={s.payment_status === 'paid' ? 'success' : 'warning'} />
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton size="small" onClick={() => onEdit(s)} aria-label="edit">
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => onDelete(s)} aria-label="delete">
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  {canManageServants && (
+                    <IconButton size="small" onClick={() => onEdit(s)} aria-label="edit">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                  {canDelete && (
+                    <IconButton size="small" onClick={() => onDelete(s)} aria-label="delete">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

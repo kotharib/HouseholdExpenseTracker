@@ -13,9 +13,10 @@ import {
   Typography,
 } from '@mui/material'
 import { Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon } from '@mui/icons-material'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { NewspaperDailyResponse, NewspaperDay, NewspaperGroup } from '../types'
 import { formatMoney } from '../utils/format'
+import { usePermissions } from '../utils/roles'
 
 interface Props {
   daily: NewspaperDailyResponse
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function NewspaperList({ daily, onToggleDelivered, onDelete, onBulkDelete, onDeleteAll }: Props) {
+  const { canDelete, canWrite } = usePermissions()
   const [selected, setSelected] = useState<number[]>([])
   const groups = daily.newspapers
 
@@ -53,33 +55,37 @@ export default function NewspaperList({ daily, onToggleDelivered, onDelete, onBu
           {selected.length > 0 ? `${selected.length} selected` : `${allRows.length} daily records`}
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            startIcon={<DeleteSweepIcon />}
-            disabled={selected.length === 0}
-            onClick={() => {
-              onBulkDelete(selected)
-              setSelected([])
-            }}
-          >
-            Delete selected ({selected.length})
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            disabled={allRows.length === 0}
-            onClick={() => {
-              if (window.confirm(`Delete ALL ${allRows.length} newspaper delivery records? This cannot be undone.`)) {
-                onDeleteAll()
-                setSelected([])
-              }
-            }}
-          >
-            Delete all
-          </Button>
+          {canDelete && (
+            <Fragment>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                startIcon={<DeleteSweepIcon />}
+                disabled={selected.length === 0}
+                onClick={() => {
+                  onBulkDelete(selected)
+                  setSelected([])
+                }}
+              >
+                Delete selected ({selected.length})
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                disabled={allRows.length === 0}
+                onClick={() => {
+                  if (window.confirm(`Delete ALL ${allRows.length} newspaper delivery records? This cannot be undone.`)) {
+                    onDeleteAll()
+                    setSelected([])
+                  }
+                }}
+              >
+                Delete all
+              </Button>
+            </Fragment>
+          )}
         </Stack>
       </Stack>
       <TableContainer>
@@ -126,12 +132,14 @@ export default function NewspaperList({ daily, onToggleDelivered, onDelete, onBu
                     <TableCell>{d.date}</TableCell>
                     <TableCell align="right" />
                     <TableCell>
-                      <Checkbox size="small" checked={d.delivered} onChange={() => onToggleDelivered(d, g)} title="Toggle delivered" />
+                      <Checkbox size="small" checked={d.delivered} onChange={() => onToggleDelivered(d, g)} disabled={!canWrite} title="Toggle delivered" />
                     </TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" onClick={() => onDelete(d, g)} aria-label="delete">
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      {canDelete && (
+                        <IconButton size="small" onClick={() => onDelete(d, g)} aria-label="delete">
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
                     </TableCell>
                   </TableRow>
                 )),
