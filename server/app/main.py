@@ -20,6 +20,7 @@ from app.routers import (
     reports,
     roles,
     servants,
+    subscriptions,
 )
 from app.services.seed import run_seed
 
@@ -59,7 +60,7 @@ app.add_middleware(
 
 for r in (auth.router, roles.router, expenses.router, servants.router, milk.router,
           newspaper.router, dashboard.router, ai.router, reports.router,
-          diagrams.router, investments.router, billing.router):
+          diagrams.router, investments.router, billing.router, subscriptions.router):
     app.include_router(r)
 
 

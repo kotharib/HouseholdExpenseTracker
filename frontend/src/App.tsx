@@ -13,6 +13,7 @@ import InvestmentsPage from './pages/InvestmentsPage'
 import MilkPage from './pages/MilkPage'
 import NewspaperPage from './pages/NewspaperPage'
 import ReportsPage from './pages/ReportsPage'
+import SubscriptionsPage from './pages/SubscriptionsPage'
 import ServantsPage from './pages/ServantsPage'
 import SettingsPage from './pages/SettingsPage'
 import { useThemeStore } from './store/themeStore'
@@ -76,6 +77,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={MANAGER_ROLES}>
                   <NewspaperPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/subscriptions"
+              element={
+                <ProtectedRoute roles={MANAGER_ROLES}>
+                  <SubscriptionsPage />
                 </ProtectedRoute>
               }
             />

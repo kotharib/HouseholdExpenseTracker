@@ -59,19 +59,21 @@ def milk_daily_summary(session: Session, month: str) -> dict:
             "quantity": r.quantity,
             "rate": r.rate,
             "total": round(r.quantity * r.rate, 2),
-            "delivered": bool(r.is_delivered),
+            "delivered": r.is_delivered,
+            "subscription_id": r.subscription_id,
             "payment_status": r.payment_status,
         }
         for r in rows
     ]
-    delivered = sum(1 for d in days if d["delivered"])
+    delivered = sum(1 for d in days if d["delivered"] is True)
+    missed = sum(1 for d in days if d["delivered"] is False)
     return {
         "year": int(month[:4]),
         "month": month,
         "month_label": month_name(month),
         "days": days,
         "delivered_days": delivered,
-        "missed_days": len(days) - delivered,
+        "missed_days": missed,
     }
 
 
@@ -87,45 +89,40 @@ def newspaper_daily_summary(session: Session, month: str) -> dict:
         by_name[r.name].append(r)
 
     year, month_num = int(month[:4]), int(month[5:7])
-    days_in_month = calendar.monthrange(year, month_num)[1]
 
     groups: list[dict] = []
     for name, records in sorted(by_name.items()):
-        record_map = {r.date.day: r for r in records}
-        days: list[dict] = []
-        delivered_count = 0
-        for day_num in range(1, days_in_month + 1):
-            record = record_map.get(day_num)
-            delivered = bool(record.delivery_status) if record else False
-            days.append(
-                {
-                    "id": record.id if record else None,
-                    "date": f"{month}-{day_num:02d}",
-                    "delivered": delivered,
-                }
-            )
-            if delivered:
-                delivered_count += 1
+        days = [
+            {
+                "id": r.id,
+                "date": r.date.isoformat(),
+                "delivered": r.delivery_status,
+                "subscription_id": r.subscription_id,
+            }
+            for r in records
+        ]
+        delivered_count = sum(1 for d in days if d["delivered"] is True)
         monthly_cost = records[0].monthly_cost
         groups.append(
             {
                 "name": name,
                 "monthly_cost": monthly_cost,
                 "days_delivered": delivered_count,
-                "days_total": days_in_month,
+                "days_total": len(days),
                 "total": round(monthly_cost * delivered_count, 2),
                 "days": days,
             }
         )
 
     total_delivered = sum(g["days_delivered"] for g in groups)
+    missed_days = sum(sum(1 for d in g["days"] if d["delivered"] is False) for g in groups)
     return {
         "year": year,
         "month": month,
         "month_label": month_name(month),
         "newspapers": groups,
         "total_delivered": total_delivered,
-        "missed_days": sum((g["days_total"] - g["days_delivered"]) for g in groups),
+        "missed_days": missed_days,
     }
 
 
@@ -152,7 +149,7 @@ def monthly_bill(session: Session, month: str) -> dict:
             "payment_status": r.payment_status,
         }
         for r in milk_rows_list
-        if r.is_delivered
+        if r.is_delivered is True
     ]
     milk_bill = round(sum(d["total"] for d in milk_details), 2)
 
@@ -163,7 +160,7 @@ def monthly_bill(session: Session, month: str) -> dict:
     newspaper_details: list[dict] = []
     newspaper_bill = 0.0
     for name, records in sorted(by_name.items()):
-        days_delivered = sum(1 for r in records if r.delivery_status)
+        days_delivered = sum(1 for r in records if r.delivery_status is True)
         monthly_cost = records[0].monthly_cost
         total = round(monthly_cost * days_delivered, 2)
         newspaper_details.append(
@@ -225,7 +222,7 @@ def missing_deliveries(session: Session, month: str) -> list[dict]:
 
     milk_rows_list = milk_rows(session, month)
     for r in milk_rows_list:
-        if not r.is_delivered:
+        if r.is_delivered is False:
             missed.append(
                 {
                     "type": "milk",
@@ -237,7 +234,7 @@ def missing_deliveries(session: Session, month: str) -> list[dict]:
 
     paper_rows_list = newspaper_rows(session, month)
     for r in paper_rows_list:
-        if not r.delivery_status:
+        if r.delivery_status is False:
             missed.append(
                 {
                     "type": "newspaper",

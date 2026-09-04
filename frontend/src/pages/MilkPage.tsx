@@ -1,11 +1,9 @@
-import { Button, Card, CardContent, Stack, TextField, Typography } from '@mui/material'
-import { Add as AddIcon } from '@mui/icons-material'
+import { Alert, Card, CardContent, Snackbar, Stack, TextField, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { api, getErrorMessage } from '../api/client'
 import DataState from '../components/DataState'
-import MilkForm from '../components/MilkForm'
 import MilkList from '../components/MilkList'
-import type { Milk, MilkInput } from '../types'
+import type { Milk } from '../types'
 
 const today = () => new Date().toISOString().slice(0, 7)
 
@@ -14,16 +12,30 @@ export default function MilkPage() {
   const [deliveries, setDeliveries] = useState<Milk[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<Milk | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [toast, setToast] = useState('')
 
   const load = async (m: string) => {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Milk[]>('/milk', { params: { month: m } })
-      setDeliveries(res.data)
+      const year = m.slice(0, 4)
+      const monthNum = m.slice(5, 7)
+      const res = await api.get(`/milk/deliveries/${year}/${monthNum}`)
+      const days = (res.data?.days ?? []) as Array<Milk & { delivered?: boolean | null; supplier: string }>
+      setDeliveries(
+        days.map((d) => ({
+          id: d.id as number,
+          supplier: d.supplier,
+          quantity: d.quantity,
+          rate: d.rate,
+          date: d.date,
+          month: m,
+          is_delivered: d.delivered ?? d.is_delivered ?? null,
+          payment_status: d.payment_status,
+          total: d.total,
+          subscription_id: d.subscription_id,
+        })),
+      )
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
@@ -35,55 +47,11 @@ export default function MilkPage() {
     load(month)
   }, [month])
 
-  const submit = async (data: MilkInput, id?: number) => {
-    setSubmitting(true)
+  const markStatus = async (delivery: Milk, delivered: boolean) => {
     try {
-      if (id) {
-        await api.put(`/milk/${id}`, data)
-      } else {
-        await api.post('/milk', data)
-      }
-      setOpen(false)
-      load(month)
-    } catch (err) {
-      setError(getErrorMessage(err))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const remove = async (delivery: Milk) => {
-    if (!window.confirm(`Delete milk delivery from ${delivery.supplier}?`)) return
-    try {
-      await api.delete(`/milk/${delivery.id}`)
-      load(month)
-    } catch (err) {
-      setError(getErrorMessage(err))
-    }
-  }
-
-  const bulkDelete = async (ids: number[]) => {
-    try {
-      await api.post('/milk/bulk-delete', { ids })
-      load(month)
-    } catch (err) {
-      setError(getErrorMessage(err))
-    }
-  }
-
-  const deleteAll = async () => {
-    try {
-      await api.post('/milk/bulk-delete', { all: true })
-      load(month)
-    } catch (err) {
-      setError(getErrorMessage(err))
-    }
-  }
-
-  const toggleDelivered = async (delivery: Milk) => {
-    try {
-      await api.put(`/milk/${delivery.id}`, { is_delivered: !delivery.is_delivered })
-      load(month)
+      await api.patch(`/deliveries/${delivery.id}/status`, { delivered, delivery_type: 'milk' })
+      setDeliveries((prev) => prev.map((row) => (row.id === delivery.id ? { ...row, is_delivered: delivered } : row)))
+      setToast(delivered ? 'Marked as delivered.' : 'Marked as not delivered.')
     } catch (err) {
       setError(getErrorMessage(err))
     }
@@ -94,6 +62,9 @@ export default function MilkPage() {
       <Typography variant="h4" gutterBottom>
         Milk Deliveries
       </Typography>
+      <Typography color="text.secondary" sx={{ mb: 2 }}>
+        Rows are generated from your milk subscriptions. Mark each day as delivered or not delivered.
+      </Typography>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
         <TextField
           label="Month (YYYY-MM)"
@@ -101,42 +72,20 @@ export default function MilkPage() {
           onChange={(e) => setMonth(e.target.value)}
           inputProps={{ maxLength: 7 }}
         />
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setEditing(null)
-            setOpen(true)
-          }}
-        >
-          Add Delivery
-        </Button>
       </Stack>
       <DataState loading={loading} error={error} onRetry={() => load(month)} />
       {!loading && !error && (
         <Card>
           <CardContent>
-            <MilkList
-              deliveries={deliveries}
-              onEdit={(d) => {
-                setEditing(d)
-                setOpen(true)
-              }}
-              onDelete={remove}
-              onBulkDelete={bulkDelete}
-              onDeleteAll={deleteAll}
-              onToggleDelivered={toggleDelivered}
-            />
+            <MilkList deliveries={deliveries} onMarkStatus={markStatus} />
           </CardContent>
         </Card>
       )}
-      <MilkForm
-        open={open}
-        initial={editing}
-        onClose={() => setOpen(false)}
-        onSubmit={submit}
-        submitting={submitting}
-      />
+      <Snackbar open={Boolean(toast)} autoHideDuration={2500} onClose={() => setToast('')}>
+        <Alert severity="success" onClose={() => setToast('')} variant="filled">
+          {toast}
+        </Alert>
+      </Snackbar>
     </div>
   )
 }

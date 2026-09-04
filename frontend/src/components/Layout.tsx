@@ -1,6 +1,6 @@
 import { NavLink, useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { styled } from '@mui/material/styles'
-import { Article as ArticleIcon, CalendarMonth as CalendarMonthIcon, Chat as ChatIcon, Dashboard as DashboardIcon, DarkMode as DarkModeIcon, Description as DescriptionIcon, LightMode as LightModeIcon, Logout as LogoutIcon, People as PeopleIcon, Receipt as ReceiptIcon, Settings as SettingsIcon, Savings as SavingsIcon, ShowChart as ShowChartIcon, WaterDrop as WaterDropIcon } from '@mui/icons-material'
+import { Article as ArticleIcon, CalendarMonth as CalendarMonthIcon, Chat as ChatIcon, Dashboard as DashboardIcon, DarkMode as DarkModeIcon, Description as DescriptionIcon, EventRepeat as EventRepeatIcon, LightMode as LightModeIcon, Logout as LogoutIcon, People as PeopleIcon, Receipt as ReceiptIcon, Settings as SettingsIcon, Savings as SavingsIcon, ShowChart as ShowChartIcon, WaterDrop as WaterDropIcon } from '@mui/icons-material'
 import { IconButton, Stack, Tooltip } from '@mui/material'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
@@ -151,6 +151,7 @@ export default function Layout() {
     { label: 'Expenses', path: '/expenses', icon: ReceiptIcon, roles: MANAGER_ROLES },
     { label: 'Investments', path: '/investments', icon: ShowChartIcon, roles: MANAGER_ROLES },
     { label: 'Servants', path: '/servants', icon: PeopleIcon, roles: MANAGER_ROLES },
+    { label: 'Subscriptions', path: '/subscriptions', icon: EventRepeatIcon, roles: MANAGER_ROLES },
     { label: 'Milk', path: '/milk', icon: WaterDropIcon, roles: MANAGER_ROLES },
     { label: 'Newspaper', path: '/newspaper', icon: ArticleIcon, roles: MANAGER_ROLES },
     { label: 'Monthly Bill', path: '/billing', icon: CalendarMonthIcon, roles: MANAGER_ROLES },

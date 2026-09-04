@@ -10,7 +10,9 @@ from app.models.investment import Investment
 from app.models.milk import MilkDelivery
 from app.models.newspaper import NewspaperDelivery
 from app.models.servant import Servant
+from app.models.subscription import DeliverySubscription
 from app.models.user import User
+from app.services import subscription as subscription_service
 
 CATEGORIES = [
     "groceries", "utilities", "transport", "entertainment",
@@ -122,48 +124,84 @@ def seed_servants(session: Session) -> None:
         )
 
 
+def _demo_user_id(session: Session) -> int:
+    demo = session.exec(select(User).where(User.username == "demo")).first()
+    if demo and demo.id is not None:
+        return demo.id
+    admin = session.exec(select(User).where(User.username == "admin")).first()
+    return admin.id if admin and admin.id is not None else 1
+
+
+def seed_subscriptions(session: Session) -> None:
+    existing = session.exec(select(DeliverySubscription)).first()
+    if existing:
+        return
+    today = date.today()
+    month_start = today.replace(day=1)
+    user_id = _demo_user_id(session)
+    milk_sub = DeliverySubscription(
+        user_id=user_id,
+        delivery_type="milk",
+        name=MILK_SUPPLIERS[0],
+        start_date=month_start,
+        end_date=None,
+        active=True,
+        delivery_frequency="daily",
+        rate_per_unit=28.0,
+        default_quantity=1.5,
+        auto_generate=True,
+    )
+    session.add(milk_sub)
+    session.flush()
+    subscription_service.generate_rows(session, milk_sub)
+    milk_rows = session.exec(select(MilkDelivery).where(MilkDelivery.subscription_id == milk_sub.id)).all()
+    missed_milk = {2, 5, 11}
+    for row in milk_rows:
+        if row.date.day in missed_milk:
+            row.is_delivered = False
+        elif row.date <= today:
+            row.is_delivered = True
+        session.add(row)
+
+    for name, cost in NEWSPAPERS:
+        paper_sub = DeliverySubscription(
+            user_id=user_id,
+            delivery_type="newspaper",
+            name=name,
+            start_date=month_start,
+            end_date=None,
+            active=True,
+            delivery_frequency="daily",
+            monthly_cost=cost,
+            auto_generate=True,
+        )
+        session.add(paper_sub)
+        session.flush()
+        subscription_service.generate_rows(session, paper_sub)
+        paper_rows = session.exec(
+            select(NewspaperDelivery).where(NewspaperDelivery.subscription_id == paper_sub.id)
+        ).all()
+        missed_paper = {2, 9, 17, 25}
+        for row in paper_rows:
+            if row.date.day in missed_paper:
+                row.delivery_status = False
+            elif row.date <= today:
+                row.delivery_status = True
+            session.add(row)
+
+
 def seed_milk(session: Session) -> None:
     existing = session.exec(select(MilkDelivery)).first()
     if existing:
         return
-    today = date.today()
-    current_month = today.strftime("%Y-%m")
-    missed_days = {2, 5, 11}
-    for day in range(1, today.day + 1, 2):
-        supplier = MILK_SUPPLIERS[day % len(MILK_SUPPLIERS)]
-        session.add(
-            MilkDelivery(
-                supplier=supplier,
-                quantity=1.5,
-                rate=28.0,
-                date=date(today.year, today.month, min(day, today.day)),
-                month=current_month,
-                is_delivered=day not in missed_days,
-                payment_status="pending",
-            )
-        )
+    seed_subscriptions(session)
 
 
 def seed_newspapers(session: Session) -> None:
     existing = session.exec(select(NewspaperDelivery)).first()
     if existing:
         return
-    today = date.today()
-    current_month = today.strftime("%Y-%m")
-    last_day = 28
-    missed_days = {2, 9, 17, 25}
-    for name, cost in NEWSPAPERS:
-        for day in range(1, last_day + 1):
-            session.add(
-                NewspaperDelivery(
-                    name=name,
-                    monthly_cost=cost,
-                    date=date(today.year, today.month, min(day, last_day)),
-                    month=current_month,
-                    delivery_status=day not in missed_days,
-                    payment_status="pending",
-                )
-            )
+    seed_subscriptions(session)
 
 
 def seed_investments(session: Session) -> None:
@@ -202,6 +240,7 @@ def run_seed(session: Session) -> None:
     seed_users(session)
     seed_expenses(session)
     seed_servants(session)
+    seed_subscriptions(session)
     seed_milk(session)
     seed_newspapers(session)
     seed_investments(session)

@@ -12,6 +12,7 @@ from app.schemas.billing import NewspaperDailyResponse
 from app.schemas.common import BulkDeleteRequest, BulkDeleteResponse
 from app.schemas.newspaper import NewspaperCreate, NewspaperRead, NewspaperUpdate
 from app.services import delivery as delivery_service
+from app.services import subscription as subscription_service
 from app.utils.helpers import validate_month
 
 router = APIRouter(prefix="/newspaper", tags=["newspaper"])
@@ -32,6 +33,7 @@ def daily_newspaper_deliveries(
     _: User = Depends(viewer_allowed),
 ):
     month_str = validate_month(f"{year}-{month:02d}")
+    subscription_service.ensure_month_rows(session, month_str, delivery_type="newspaper")
     return NewspaperDailyResponse(**delivery_service.newspaper_daily_summary(session, month_str))
 
 

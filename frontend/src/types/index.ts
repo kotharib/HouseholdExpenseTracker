@@ -56,7 +56,8 @@ export interface Milk {
   rate: number
   date: string
   month: string
-  is_delivered: boolean
+  is_delivered: boolean | null
+  subscription_id?: number | null
   payment_status: 'pending' | 'paid'
   total: number
 }
@@ -67,7 +68,7 @@ export interface MilkInput {
   rate: number
   date: string
   month: string
-  is_delivered: boolean
+  is_delivered?: boolean | null
   payment_status: 'pending' | 'paid'
 }
 
@@ -77,7 +78,8 @@ export interface Newspaper {
   monthly_cost: number
   date: string
   month: string
-  delivery_status: boolean
+  delivery_status: boolean | null
+  subscription_id?: number | null
   payment_status: 'pending' | 'paid'
 }
 
@@ -97,7 +99,8 @@ export interface MilkDay {
   quantity: number
   rate: number
   total: number
-  delivered: boolean
+  delivered: boolean | null
+  subscription_id?: number | null
   payment_status: 'pending' | 'paid'
 }
 
@@ -113,7 +116,8 @@ export interface MilkDailyResponse {
 export interface NewspaperDay {
   id: number | null
   date: string
-  delivered: boolean
+  delivered: boolean | null
+  subscription_id?: number | null
 }
 
 export interface NewspaperGroup {
@@ -350,6 +354,53 @@ export interface MarketSuggestions {
 
 export interface Page<T> {
   data: T[]
+}
+
+export type DeliveryType = 'milk' | 'newspaper' | 'custom'
+export type DeliveryFrequency = 'daily' | 'alternate' | 'custom'
+
+export interface DeliverySubscription {
+  id: number
+  user_id: number
+  delivery_type: DeliveryType
+  name: string
+  start_date: string
+  end_date?: string | null
+  active: boolean
+  delivery_frequency: DeliveryFrequency
+  custom_pattern?: string[] | null
+  rate_per_unit?: number | null
+  monthly_cost?: number | null
+  default_quantity?: number | null
+  auto_generate: boolean
+  generated_count?: number
+}
+
+export interface DeliverySubscriptionInput {
+  delivery_type: DeliveryType
+  name: string
+  start_date: string
+  end_date?: string | null
+  active: boolean
+  delivery_frequency: DeliveryFrequency
+  custom_pattern?: string[] | null
+  rate_per_unit?: number | null
+  monthly_cost?: number | null
+  default_quantity?: number | null
+  auto_generate: boolean
+}
+
+export interface SubscriptionDeliveryDay {
+  id: number
+  date: string
+  delivered: boolean | null
+  name: string
+  delivery_type: DeliveryType
+  quantity?: number | null
+  rate?: number | null
+  monthly_cost?: number | null
+  subscription_id?: number | null
+  month: string
 }
 
 export const expenseCategories = [
