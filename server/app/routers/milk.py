@@ -9,6 +9,7 @@ from app.schemas.billing import MilkDailyResponse
 from app.schemas.common import BulkDeleteRequest, BulkDeleteResponse
 from app.schemas.milk import MilkCreate, MilkRead, MilkUpdate
 from app.services import delivery as delivery_service
+from app.services import subscription as subscription_service
 from app.utils.helpers import validate_month
 
 router = APIRouter(prefix="/milk", tags=["milk"])
@@ -29,6 +30,7 @@ def daily_milk_deliveries(
     _: User = Depends(viewer_allowed),
 ):
     month_str = validate_month(f"{year}-{month:02d}")
+    subscription_service.ensure_month_rows(session, month_str, delivery_type="milk")
     return MilkDailyResponse(**delivery_service.milk_daily_summary(session, month_str))
 
 

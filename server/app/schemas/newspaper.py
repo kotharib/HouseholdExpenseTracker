@@ -16,7 +16,7 @@ class NewspaperBase(SQLModel):
     monthly_cost: float = Field(gt=0)
     date: date_type = Field(default_factory=date_type.today)
     month: str = Field(default_factory=current_month, max_length=7)
-    delivery_status: bool = Field(default=True)
+    delivery_status: Optional[bool] = Field(default=None)
     payment_status: str = Field(default="pending", max_length=16)
 
     @field_validator("name")
@@ -53,3 +53,4 @@ class NewspaperUpdate(SQLModel):
 
 class NewspaperRead(NewspaperBase):
     id: int
+    subscription_id: Optional[int] = None

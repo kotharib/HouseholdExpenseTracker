@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.ai.context import AI_DENIED, get_ai_role
 from app.auth.roles import ROLE_ADMIN
@@ -250,6 +250,71 @@ def _get_delivery_summary(year: str = "", month: str = "") -> str:
         return "\n".join(lines)
 
 
+def _get_subscription_details(subscription_id: str = "") -> str:
+    """Return details for a delivery subscription. Read-only."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
+    from app.models.subscription import DeliverySubscription
+    from app.services import subscription as subscription_service
+
+    raw = (subscription_id or "").strip()
+    try:
+        sub_id = int(raw)
+    except (TypeError, ValueError):
+        return "Please provide a numeric subscription_id."
+    with Session(engine) as session:
+        sub = session.get(DeliverySubscription, sub_id)
+        if sub is None:
+            return f"I could not find subscription {sub_id}."
+        data = subscription_service.counted_read(session, sub)
+        lines = [
+            f"SUBSCRIPTION {data['id']}: {data['name']}",
+            f"Type: {data['delivery_type']}",
+            f"Active: {data['active']}",
+            f"Frequency: {data['delivery_frequency']}",
+            f"Start date: {data['start_date']}",
+            f"End date: {data['end_date'] or 'ongoing'}",
+            f"Auto-generate: {data['auto_generate']}",
+            f"Generated daily rows: {data['generated_count']}",
+        ]
+        if data["delivery_type"] == "milk":
+            lines.append(f"Default quantity: {data['default_quantity']} L")
+            lines.append(f"Rate per unit: {format_money(data['rate_per_unit'] or 0)}")
+        if data["delivery_type"] == "newspaper":
+            lines.append(f"Monthly cost: {format_money(data['monthly_cost'] or 0)}")
+        if data["custom_pattern"]:
+            lines.append("Custom pattern: " + ", ".join(data["custom_pattern"]))
+        return "\n".join(lines)
+
+
+def _get_subscription_deliveries(year: str = "", month: str = "") -> str:
+    """Return auto-generated subscription deliveries for a year/month. Read-only."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
+    from app.models.subscription import DeliverySubscription
+    from app.services import subscription as subscription_service
+
+    target = _resolve_tool_month(year, month)
+    year_num, month_num = int(target[:4]), int(target[5:7])
+    with Session(engine) as session:
+        subs = session.exec(select(DeliverySubscription)).all()
+        if not subs:
+            return f"No delivery subscriptions found for {target}."
+        lines = [f"SUBSCRIPTION DELIVERIES - {target}"]
+        for sub in subs:
+            days = subscription_service.list_subscription_deliveries(session, sub, year_num, month_num)
+            delivered = sum(1 for d in days if d["delivered"] is True)
+            missed = sum(1 for d in days if d["delivered"] is False)
+            unmarked = sum(1 for d in days if d["delivered"] is None)
+            lines.append(
+                f"- #{sub.id} {sub.name} ({sub.delivery_type}): "
+                f"{len(days)} scheduled, {delivered} delivered, {missed} missed, {unmarked} unmarked."
+            )
+        return "\n".join(lines)
+
+
 def _get_missing_deliveries(year: str = "", month: str = "") -> str:
     """Return the list of days where milk or newspaper was not delivered."""
     denied = _deny_if_no_role()
@@ -294,8 +359,10 @@ def build_langchain_tools() -> list:
             "Execute a read-only SQL SELECT query on the SQLite database. Tables: "
             "expenses(id, category, amount, date, notes, payment_mode, tags), "
             "servants(id, name, role, monthly_salary, payment_status, attendance_count), "
-            "milk_deliveries(id, supplier, quantity, rate, date, month, is_delivered, payment_status), "
-            "newspaper_deliveries(id, name, monthly_cost, date, month, delivery_status, payment_status), "
+            "milk_deliveries(id, supplier, quantity, rate, date, month, is_delivered, subscription_id, payment_status), "
+            "newspaper_deliveries(id, name, monthly_cost, date, month, delivery_status, subscription_id, payment_status), "
+            "delivery_subscriptions(id, user_id, delivery_type, name, start_date, end_date, active, delivery_frequency, rate_per_unit, monthly_cost, default_quantity, auto_generate), "
+            "custom_deliveries(id, name, date, month, delivered, subscription_id), "
             "users(id, username, password_hash, role). Use month LIKE 'YYYY-MM' filters."
         ),
     )
@@ -347,6 +414,23 @@ def build_langchain_tools() -> list:
             "with year and month fields."
         ),
     )
+    subscription_details_tool = Tool.from_function(
+        name="get_subscription_details",
+        func=_get_subscription_details,
+        description=(
+            "Return details for one delivery subscription. Pass the numeric subscription_id. "
+            "Read-only: never create, update, or delete subscriptions."
+        ),
+    )
+    subscription_deliveries_tool = Tool.from_function(
+        name="get_subscription_deliveries",
+        func=_get_subscription_deliveries,
+        description=(
+            "Return auto-generated daily delivery rows for all subscriptions in a month. "
+            "Pass a YYYY-MM month string. Use this for questions like how many milk "
+            "deliveries were scheduled this month. Read-only."
+        ),
+    )
     mf_tool = Tool.from_function(
         name="suggest_mutual_funds",
         func=_suggest_mutual_funds,
@@ -366,5 +450,7 @@ def build_langchain_tools() -> list:
         delivery_bill_tool,
         delivery_summary_tool,
         missing_deliveries_tool,
+        subscription_details_tool,
+        subscription_deliveries_tool,
         mf_tool,
     ]

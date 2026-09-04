@@ -12,7 +12,8 @@ class MilkDay(BaseModel):
     quantity: float
     rate: float
     total: float
-    delivered: bool
+    delivered: Optional[bool] = None
+    subscription_id: Optional[int] = None
     payment_status: str
 
 
@@ -28,7 +29,8 @@ class MilkDailyResponse(BaseModel):
 class NewspaperDay(BaseModel):
     id: Optional[int] = None
     date: str
-    delivered: bool
+    delivered: Optional[bool] = None
+    subscription_id: Optional[int] = None
 
 
 class NewspaperGroup(BaseModel):

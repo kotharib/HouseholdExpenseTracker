@@ -220,6 +220,8 @@ class FallbackAgent:
                 return self._insight_answer(session, lowered)
             if self._is_missing_query(lowered):
                 return self._missing_deliveries_answer(session, lowered)
+            if self._is_subscription_query(lowered):
+                return self._subscription_answer(session, lowered)
             if self._is_bill_change_query(lowered):
                 return self._bill_change_answer(session, lowered)
             if self._is_daily_query(lowered):
@@ -347,6 +349,10 @@ class FallbackAgent:
     @staticmethod
     def _is_delivery_query(text: str) -> bool:
         return any(k in text for k in ("delivery", "deliveries", "delivered"))
+
+    @staticmethod
+    def _is_subscription_query(text: str) -> bool:
+        return any(k in text for k in ("subscription", "scheduled this month", "explain my newspaper"))
 
     @staticmethod
     def _is_missing_query(text: str) -> bool:
@@ -696,6 +702,45 @@ class FallbackAgent:
             "Insight: milk is tracked per recorded day; newspaper is expanded per calendar "
             "day. These are the exact figures used for billing.",
         )
+        return "\n".join(lines)
+
+    def _subscription_answer(self, session, text: str) -> str:
+        from sqlmodel import select
+
+        from app.models.subscription import DeliverySubscription
+        from app.services import subscription as subscription_service
+
+        month = self._resolve_month(text) or date.today().strftime("%Y-%m")
+        year_num, month_num = int(month[:4]), int(month[5:7])
+        subs = session.exec(select(DeliverySubscription)).all()
+        if not subs:
+            return self._no_data("delivery subscriptions")
+        want_newspaper = "newspaper" in text or "paper" in text
+        want_milk = "milk" in text
+        filtered = [
+            s for s in subs
+            if (want_newspaper and s.delivery_type == "newspaper")
+            or (want_milk and s.delivery_type == "milk")
+            or (not want_newspaper and not want_milk)
+        ]
+        if not filtered:
+            filtered = subs
+        lines = [f"Delivery subscriptions ({len(filtered)}):"]
+        for sub in filtered:
+            days = subscription_service.list_subscription_deliveries(session, sub, year_num, month_num)
+            delivered = sum(1 for d in days if d["delivered"] is True)
+            missed = sum(1 for d in days if d["delivered"] is False)
+            lines.append(
+                f"- #{sub.id} {sub.name} ({sub.delivery_type}): "
+                f"{'active' if sub.active else 'inactive'}, {sub.delivery_frequency}, "
+                f"{len(days)} scheduled in {month_name(month)}, {delivered} delivered, {missed} missed."
+            )
+            if sub.delivery_type == "newspaper" and sub.monthly_cost:
+                lines.append(f"  Monthly cost {format_money(sub.monthly_cost)}; end date {sub.end_date or 'ongoing'}.")
+            if sub.delivery_type == "milk":
+                lines.append(
+                    f"  Default {sub.default_quantity}L at {format_money(sub.rate_per_unit or 0)}/L."
+                )
         return "\n".join(lines)
 
     def _missing_deliveries_answer(self, session, text: str) -> str:
@@ -1066,6 +1111,8 @@ class FallbackAgent:
             "  - What is my milk bill for July?\n"
             "  - What is my newspaper bill for August?\n"
             "  - How many milk deliveries happened this month?\n"
+            "  - How many milk deliveries were scheduled this month?\n"
+            "  - Explain my newspaper subscription.\n"
             "  - Which days did newspaper not arrive?\n"
             "  - What happened on August 5 for deliveries?\n"
             "  - Why is my bill higher this month?\n"

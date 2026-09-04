@@ -1,8 +1,6 @@
 import {
   Button,
-  Checkbox,
   Chip,
-  IconButton,
   Stack,
   Table,
   TableBody,
@@ -10,10 +8,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material'
-import { Delete as DeleteIcon, DeleteSweep as DeleteSweepIcon, Edit as EditIcon, FilterAltOff as FilterAltOffIcon } from '@mui/icons-material'
-import { Fragment, useMemo, useState } from 'react'
+import { FilterAltOff as FilterAltOffIcon } from '@mui/icons-material'
+import { useMemo } from 'react'
 import type { Milk } from '../types'
 import { formatMoney } from '../utils/format'
 import { usePermissions } from '../utils/roles'
@@ -22,30 +22,29 @@ import { FilterCell, SortableHeader } from './TableControls'
 
 interface Props {
   deliveries: Milk[]
-  onEdit: (delivery: Milk) => void
-  onDelete: (delivery: Milk) => void
-  onBulkDelete: (ids: number[]) => void
-  onDeleteAll: () => void
-  onToggleDelivered: (delivery: Milk) => void
+  onMarkStatus: (delivery: Milk, delivered: boolean) => void
 }
 
-export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, onDeleteAll, onToggleDelivered }: Props) {
-  const { canDelete, canWrite } = usePermissions()
-  const [selected, setSelected] = useState<number[]>([])
+function statusLabel(value: boolean | null) {
+  if (value === true) return 'Delivered'
+  if (value === false) return 'Not delivered'
+  return 'Unmarked'
+}
+
+export default function MilkList({ deliveries, onMarkStatus }: Props) {
+  const { canWrite } = usePermissions()
   const { sortColumn, sortDirection, filters, sortedAndFiltered, handleSort, handleFilter, clearFilters, hasActiveFilter } =
     useTableControls<Milk>(deliveries)
-  const allSelected = sortedAndFiltered.length > 0 && selected.length === sortedAndFiltered.length
 
-  const toggle = (id: number) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  const toggleAll = () => setSelected(allSelected ? [] : sortedAndFiltered.map((d) => d.id))
-
-  const total = useMemo(() => sortedAndFiltered.reduce((sum, d) => sum + d.total, 0), [sortedAndFiltered])
+  const total = useMemo(
+    () => sortedAndFiltered.reduce((sum, d) => sum + (d.is_delivered ? d.total : 0), 0),
+    [sortedAndFiltered],
+  )
 
   if (deliveries.length === 0) {
     return (
       <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-        No milk deliveries recorded.
+        No milk deliveries generated for this month. Add a milk subscription first.
       </Typography>
     )
   }
@@ -65,55 +64,19 @@ export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, o
     <>
       <Stack direction="row" spacing={1} sx={{ mb: 1 }} justifyContent="space-between">
         <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
-          {selected.length > 0 ? `${selected.length} selected` : `${sortedAndFiltered.length} records`}
+          {sortedAndFiltered.length} scheduled days
           {hasActiveFilter && ` (of ${deliveries.length})`}
         </Typography>
-        <Stack direction="row" spacing={1}>
-          {hasActiveFilter && (
-            <Button size="small" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>
-              Clear
-            </Button>
-          )}
-          {canDelete && (
-            <Fragment>
-              <Button
-                size="small"
-                color="error"
-                variant="outlined"
-                startIcon={<DeleteSweepIcon />}
-                disabled={selected.length === 0}
-                onClick={() => {
-                  onBulkDelete(selected)
-                  setSelected([])
-                }}
-              >
-                Delete selected ({selected.length})
-              </Button>
-              <Button
-                size="small"
-                color="error"
-                variant="outlined"
-                disabled={deliveries.length === 0}
-                onClick={() => {
-                  if (window.confirm(`Delete ALL ${deliveries.length} milk deliveries? This cannot be undone.`)) {
-                    onDeleteAll()
-                    setSelected([])
-                  }
-                }}
-              >
-                Delete all
-              </Button>
-            </Fragment>
-          )}
-        </Stack>
+        {hasActiveFilter && (
+          <Button size="small" startIcon={<FilterAltOffIcon />} onClick={clearFilters}>
+            Clear
+          </Button>
+        )}
       </Stack>
       <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox size="small" checked={allSelected} onChange={toggleAll} inputProps={{ 'aria-label': 'select all' }} />
-              </TableCell>
               <SortableHeader active={sortColumn === 'date'} direction={sortDirection} onClick={() => handleSort('date')}>
                 Date
               </SortableHeader>
@@ -130,62 +93,55 @@ export default function MilkList({ deliveries, onEdit, onDelete, onBulkDelete, o
                 Total
               </SortableHeader>
               <SortableHeader active={sortColumn === 'is_delivered'} direction={sortDirection} onClick={() => handleSort('is_delivered')}>
-                Delivered
-              </SortableHeader>
-              <SortableHeader active={sortColumn === 'payment_status'} direction={sortDirection} onClick={() => handleSort('payment_status')}>
                 Status
               </SortableHeader>
-              <TableCell align="right">Actions</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell padding="checkbox" />
               <FilterCell value={filters.date ?? ''} onChange={(v) => handleFilter('date', v)} placeholder="Date" />
               <FilterCell value={filters.supplier ?? ''} onChange={(v) => handleFilter('supplier', v)} placeholder="Supplier" />
               <FilterCell align="right" value={filters.quantity ?? ''} onChange={(v) => handleFilter('quantity', v)} placeholder="Qty" />
               <FilterCell align="right" value={filters.rate ?? ''} onChange={(v) => handleFilter('rate', v)} placeholder="Rate" />
               <FilterCell align="right" value={filters.total ?? ''} onChange={(v) => handleFilter('total', v)} placeholder="Total" />
-              <FilterCell value={filters.is_delivered ?? ''} onChange={(v) => handleFilter('is_delivered', v)} placeholder="Yes/No" />
-              <FilterCell value={filters.payment_status ?? ''} onChange={(v) => handleFilter('payment_status', v)} placeholder="Status" />
-              <TableCell align="right" />
+              <FilterCell value={filters.is_delivered ?? ''} onChange={(v) => handleFilter('is_delivered', v)} placeholder="Status" />
             </TableRow>
           </TableHead>
           <TableBody>
             {sortedAndFiltered.map((d) => (
-              <TableRow key={d.id} hover selected={selected.includes(d.id)}>
-                <TableCell padding="checkbox">
-                  <Checkbox size="small" checked={selected.includes(d.id)} onChange={() => toggle(d.id)} inputProps={{ 'aria-label': 'select' }} />
-                </TableCell>
+              <TableRow key={d.id} hover>
                 <TableCell>{d.date}</TableCell>
                 <TableCell>{d.supplier}</TableCell>
                 <TableCell align="right">{d.quantity}</TableCell>
                 <TableCell align="right">{formatMoney(d.rate)}</TableCell>
                 <TableCell align="right">{formatMoney(d.total)}</TableCell>
                 <TableCell>
-                  <Checkbox size="small" checked={d.is_delivered} onChange={() => onToggleDelivered(d)} disabled={!canWrite} title="Toggle delivered" />
-                </TableCell>
-                <TableCell>
-                  <Chip label={d.payment_status} size="small" color={d.payment_status === 'paid' ? 'success' : 'warning'} />
-                </TableCell>
-                <TableCell align="right">
-                  {canWrite && (
-                    <IconButton size="small" onClick={() => onEdit(d)} aria-label="edit">
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                  {canDelete && (
-                    <IconButton size="small" onClick={() => onDelete(d)} aria-label="delete">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  )}
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                      size="small"
+                      color={d.is_delivered === true ? 'success' : d.is_delivered === false ? 'error' : 'default'}
+                      label={statusLabel(d.is_delivered)}
+                    />
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      value={d.is_delivered}
+                      disabled={!canWrite}
+                      onChange={(_, value) => {
+                        if (value === true || value === false) onMarkStatus(d, value)
+                      }}
+                    >
+                      <ToggleButton value={true}>Delivered</ToggleButton>
+                      <ToggleButton value={false}>Not delivered</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}
             <TableRow>
-              <TableCell colSpan={5} />
+              <TableCell colSpan={4} />
               <TableCell align="right" sx={{ fontWeight: 700 }}>
                 {formatMoney(total)}
               </TableCell>
-              <TableCell colSpan={2} />
+              <TableCell />
             </TableRow>
           </TableBody>
         </Table>

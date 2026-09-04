@@ -15,6 +15,7 @@ class NewspaperDelivery(SQLModel, table=True):
     monthly_cost: float = Field(gt=0)
     date: date_type = Field(index=True, default_factory=date_type.today)
     month: str = Field(index=True, max_length=7)
-    delivery_status: bool = Field(default=True)
+    delivery_status: Optional[bool] = Field(default=None)
+    subscription_id: Optional[int] = Field(default=None, index=True)
     payment_status: str = Field(default="pending", max_length=16)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
