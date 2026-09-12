@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlmodel import Session, select
 
@@ -10,9 +10,10 @@ from app.database import engine, get_session
 from app.models.expense import Expense
 from app.models.user import User
 from app.reports.pdf import generate_monthly_pdf
-from app.schemas.report import AutoReportResponse
+from app.schemas.report import AutoReportResponse, MonthlyExpenseReport, YearlyExpenseReport, YearlyGraphData
 from app.services import delivery as delivery_service
 from app.services import insights
+from app.services import reports as report_service
 from app.utils.helpers import format_money, month_name, validate_month
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -120,6 +121,44 @@ async def auto_report(
         grand_total=round(bill["grand_total"], 2),
         missed_deliveries=len(missed),
     )
+
+
+def _validate_year_month(year: int, month: int | None = None) -> None:
+    if year < 2000 or year > 2100:
+        raise HTTPException(status_code=400, detail="year must be between 2000 and 2100")
+    if month is not None and (month < 1 or month > 12):
+        raise HTTPException(status_code=400, detail="month must be between 1 and 12")
+
+
+@router.get("/monthly/{year}/{month}", response_model=MonthlyExpenseReport)
+def monthly_expense_report(
+    year: int,
+    month: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(viewer_allowed),
+):
+    _validate_year_month(year, month)
+    return MonthlyExpenseReport(**report_service.monthly_expense_report(session, year, month))
+
+
+@router.get("/yearly/{year}", response_model=YearlyExpenseReport)
+def yearly_expense_report(
+    year: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(viewer_allowed),
+):
+    _validate_year_month(year)
+    return YearlyExpenseReport(**report_service.yearly_expense_report(session, year))
+
+
+@router.get("/graphs/yearly/{year}", response_model=YearlyGraphData)
+def yearly_graph_data(
+    year: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(viewer_allowed),
+):
+    _validate_year_month(year)
+    return YearlyGraphData(**report_service.yearly_graph_data(session, year))
 
 
 async def _run_agent_monthly(month: str, role: str | None = None) -> str:

@@ -331,6 +331,104 @@ def _get_missing_deliveries(year: str = "", month: str = "") -> str:
         return "\n".join(lines)
 
 
+def _resolve_tool_year(year: str = "") -> int:
+    """Resolve a calendar year from a tool argument. Defaults to the current year."""
+    import json
+    from datetime import date
+
+    raw = (year or "").strip()
+    if raw.startswith("{"):
+        try:
+            data = json.loads(raw)
+            raw = str(data.get("year", "") or "").strip()
+        except (ValueError, TypeError):
+            raw = ""
+    if raw.isdigit() and len(raw) == 4:
+        value = int(raw)
+        if 2000 <= value <= 2100:
+            return value
+    return date.today().year
+
+
+def _get_yearly_expenses(year: str = "") -> str:
+    """Return the full yearly expense report. Read-only."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
+    from app.services import reports as report_service
+
+    target = _resolve_tool_year(year)
+    with Session(engine) as session:
+        data = report_service.yearly_expense_report(session, target)
+        peak = max(data["months"], key=lambda row: row["grand_total"])
+        lines = [
+            f"YEARLY EXPENSES - {target}",
+            f"Total expenses: {format_money(data['total_expenses'])}",
+            f"Milk bill: {format_money(data['milk_bill'])}",
+            f"Newspaper bill: {format_money(data['newspaper_bill'])}",
+            f"Servant salary total: {format_money(data['servant_salary_total'])}",
+            f"GRAND TOTAL: {format_money(data['grand_total'])}",
+            f"Highest-spending month: {peak['month_label']} ({format_money(peak['grand_total'])})",
+            "Category breakdown:",
+        ]
+        for row in data["category_totals"]:
+            if row["total"] > 0:
+                lines.append(f"  - {row['category']}: {format_money(row['total'])}")
+        lines.append("Month-by-month grand totals:")
+        for row in data["months"]:
+            lines.append(
+                f"  - {row['month_abbrev']}: expenses {format_money(row['expenses_total'])}, "
+                f"grand total {format_money(row['grand_total'])}"
+            )
+        return "\n".join(lines)
+
+
+def _get_yearly_bills(year: str = "") -> str:
+    """Return the consolidated yearly bill summary. Read-only."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
+    from app.services import reports as report_service
+
+    target = _resolve_tool_year(year)
+    with Session(engine) as session:
+        data = report_service.yearly_bill_summary(session, target)
+        return "\n".join(
+            [
+                f"YEARLY BILL SUMMARY - {target}",
+                f"Total milk cost: {format_money(data['milk_cost'])}",
+                f"Total newspaper cost: {format_money(data['newspaper_cost'])}",
+                f"Total servant salary: {format_money(data['servant_salary'])}",
+                f"Total expenses: {format_money(data['expenses_total'])}",
+                f"Total household cost: {format_money(data['household_cost'])}",
+            ]
+        )
+
+
+def _get_yearly_trend_data(year: str = "") -> str:
+    """Return year-long trend arrays used for graphs. Read-only."""
+    denied = _deny_if_no_role()
+    if denied:
+        return denied
+    from app.services import reports as report_service
+
+    target = _resolve_tool_year(year)
+    with Session(engine) as session:
+        data = report_service.yearly_graph_data(session, target)
+        peak_idx = max(range(12), key=lambda i: data["grand_total"][i])
+        lines = [
+            f"YEARLY TREND DATA - {target}",
+            "Months: " + ", ".join(data["months"]),
+            "Monthly expenses: " + ", ".join(format_money(v) for v in data["monthly_expenses"]),
+            "Milk cost: " + ", ".join(format_money(v) for v in data["milk_cost"]),
+            "Newspaper cost: " + ", ".join(format_money(v) for v in data["newspaper_cost"]),
+            "Servant salary: " + ", ".join(format_money(v) for v in data["servant_salary"]),
+            "Grand total: " + ", ".join(format_money(v) for v in data["grand_total"]),
+            f"Highest-spending month: {data['months'][peak_idx]} ({format_money(data['grand_total'][peak_idx])})",
+        ]
+        return "\n".join(lines)
+
+
 def _suggest_mutual_funds(limit: str = "6") -> str:
     """Return mutual fund suggestions based on the current market value (live NAV)."""
     denied = _deny_if_no_role()
@@ -431,6 +529,34 @@ def build_langchain_tools() -> list:
             "deliveries were scheduled this month. Read-only."
         ),
     )
+    yearly_expenses_tool = Tool.from_function(
+        name="get_yearly_expenses",
+        func=_get_yearly_expenses,
+        description=(
+            "Return the full yearly expense report for a calendar year (YYYY). Includes total "
+            "expenses, category breakdown, milk/newspaper/servant totals, grand total and a "
+            "month-by-month breakdown. Read-only. Use for questions like 'show me my yearly "
+            "expenses' or 'which month had the highest spending'."
+        ),
+    )
+    yearly_bills_tool = Tool.from_function(
+        name="get_yearly_bills",
+        func=_get_yearly_bills,
+        description=(
+            "Return the consolidated yearly bill summary for a calendar year (YYYY): total milk "
+            "cost, newspaper cost, servant salary, expenses and household cost. Read-only. Use "
+            "for 'summarize my yearly household bill'."
+        ),
+    )
+    yearly_trend_tool = Tool.from_function(
+        name="get_yearly_trend_data",
+        func=_get_yearly_trend_data,
+        description=(
+            "Return graph-ready yearly trend arrays for a calendar year (YYYY): monthly expenses, "
+            "milk cost, newspaper cost, servant salary and grand total. Read-only. Use for "
+            "'how did my milk cost change across the year' or spending trend questions."
+        ),
+    )
     mf_tool = Tool.from_function(
         name="suggest_mutual_funds",
         func=_suggest_mutual_funds,
@@ -452,5 +578,8 @@ def build_langchain_tools() -> list:
         missing_deliveries_tool,
         subscription_details_tool,
         subscription_deliveries_tool,
+        yearly_expenses_tool,
+        yearly_bills_tool,
+        yearly_trend_tool,
         mf_tool,
     ]

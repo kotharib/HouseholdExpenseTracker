@@ -228,6 +228,8 @@ class FallbackAgent:
                 return self._daily_answer(session, lowered)
             if self._is_delivery_query(lowered):
                 return self._delivery_summary_answer(session, lowered)
+            if self._is_yearly_query(lowered):
+                return self._yearly_answer(session, lowered)
             if "bill" in lowered:
                 return self._bill_answer(session, lowered)
             if "report" in lowered:
@@ -345,6 +347,92 @@ class FallbackAgent:
                     return None
             return candidate
         return None
+
+    @staticmethod
+    def _resolve_year(text: str) -> int:
+        today = date.today()
+        match = re.search(r"\b(20\d{2})\b", text)
+        if match:
+            return int(match.group(1))
+        if "last year" in text:
+            return today.year - 1
+        return today.year
+
+    @staticmethod
+    def _is_yearly_query(text: str) -> bool:
+        yearly_hint = any(
+            k in text
+            for k in (
+                "yearly",
+                "year-long",
+                "across the year",
+                "for the year",
+                "this year",
+                "last year",
+                "highest spending",
+                "highest-spending",
+            )
+        )
+        if re.search(r"\b(20\d{2})\b", text) and any(k in text for k in ("expense", "bill", "spend", "trend", "milk", "household")):
+            yearly_hint = True
+        return yearly_hint and any(
+            k in text
+            for k in ("expense", "bill", "spend", "trend", "milk", "highest", "summar", "household", "cost")
+        )
+
+    def _yearly_answer(self, session, text: str) -> str:
+        from app.services import reports as report_service
+
+        year = self._resolve_year(text)
+        if any(k in text for k in ("trend", "change across", "milk cost change", "highest")):
+            data = report_service.yearly_graph_data(session, year)
+            peak_idx = max(range(12), key=lambda i: data["grand_total"][i])
+            milk_peak = max(range(12), key=lambda i: data["milk_cost"][i])
+            lines = [
+                f"Yearly household trend for {year}: grand total {format_money(sum(data['grand_total']))}.",
+                "",
+                "Reasoning:",
+                "- I called get_yearly_trend_data(year) which reuses monthly billing formulas.",
+                "- Milk Bill = SUM(quantity x rate for delivered days); Newspaper Bill = monthly_cost x days_delivered.",
+                "",
+                f"Highest-spending month: {data['months'][peak_idx]} at {format_money(data['grand_total'][peak_idx])}.",
+                f"Milk cost peaked in {data['months'][milk_peak]} at {format_money(data['milk_cost'][milk_peak])}.",
+                "Milk cost by month:",
+            ]
+            for label, amount in zip(data["months"], data["milk_cost"]):
+                lines.append(f"- {label}: {format_money(amount)}")
+            return "\n".join(lines)
+        if "bill" in text or "household" in text:
+            data = report_service.yearly_bill_summary(session, year)
+            return "\n".join(
+                [
+                    f"Yearly household bill for {year}: {format_money(data['household_cost'])}.",
+                    "",
+                    "Reasoning:",
+                    "- I called get_yearly_bills(year), which sums existing monthly bills for all 12 months.",
+                    "",
+                    f"- Milk: {format_money(data['milk_cost'])}",
+                    f"- Newspaper: {format_money(data['newspaper_cost'])}",
+                    f"- Servant salary: {format_money(data['servant_salary'])}",
+                    f"- Expenses: {format_money(data['expenses_total'])}",
+                    f"- Household cost: {format_money(data['household_cost'])}",
+                ]
+            )
+        data = report_service.yearly_expense_report(session, year)
+        peak = max(data["months"], key=lambda row: row["grand_total"])
+        lines = [
+            f"Yearly expenses for {year}: {format_money(data['total_expenses'])} in expenses, "
+            f"{format_money(data['grand_total'])} household grand total.",
+            "",
+            "Reasoning:",
+            "- I called get_yearly_expenses(year) and aggregated all 12 monthly bills.",
+            f"- Highest-spending month: {peak['month_label']} ({format_money(peak['grand_total'])}).",
+            "",
+            "Month-by-month grand totals:",
+        ]
+        for row in data["months"]:
+            lines.append(f"- {row['month_abbrev']}: {format_money(row['grand_total'])}")
+        return "\n".join(lines)
 
     @staticmethod
     def _is_delivery_query(text: str) -> bool:
@@ -1117,6 +1205,10 @@ class FallbackAgent:
             "  - What happened on August 5 for deliveries?\n"
             "  - Why is my bill higher this month?\n"
             "  - Generate my monthly bill summary.\n"
+            "  - Show me my yearly expenses.\n"
+            "  - Which month had the highest spending?\n"
+            "  - How did my milk cost change across the year?\n"
+            "  - Summarize my yearly household bill.\n"
             "  - Give me financial insights.\n"
             "  - Suggest good mutual funds to invest (based on current market value).\n\n"
             f"Quick status for {data['month_label']}: spent {format_money(data['current_month_total'])}, "

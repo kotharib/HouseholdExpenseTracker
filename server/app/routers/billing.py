@@ -12,9 +12,10 @@ from app.auth.dependencies import viewer_allowed
 from app.database import get_session
 from app.models.user import User
 from app.reports.pdf import generate_billing_pdf
-from app.schemas.billing import MonthlyBillResponse
+from app.schemas.billing import MonthlyBillResponse, YearlyBillSummary
 from app.services import delivery as delivery_service
 from app.services import insights as insight_service
+from app.services import reports as report_service
 from app.utils.helpers import validate_month
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -67,3 +68,14 @@ async def monthly_bill_pdf(
         "Content-Type": "application/pdf",
     }
     return Response(content=pdf_bytes, headers=headers, media_type="application/pdf")
+
+
+@router.get("/yearly/{year}", response_model=YearlyBillSummary)
+def yearly_bill(
+    year: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(viewer_allowed),
+):
+    if year < 2000 or year > 2100:
+        raise HTTPException(status_code=400, detail="year must be between 2000 and 2100")
+    return YearlyBillSummary(**report_service.yearly_bill_summary(session, year))

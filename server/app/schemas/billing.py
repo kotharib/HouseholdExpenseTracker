@@ -104,3 +104,16 @@ class DeliverySummary(BaseModel):
     newspaper_delivered_days: int
     newspaper_missed_days: int
     total_missed_deliveries: int
+
+
+class YearlyBillSummary(BaseModel):
+    year: int
+    milk_cost: float
+    newspaper_cost: float
+    servant_salary: float
+    expenses_total: float
+    household_cost: float
+    milk_bill: float
+    newspaper_bill: float
+    servant_salary_total: float
+    grand_total: float

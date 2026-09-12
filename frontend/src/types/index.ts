@@ -226,6 +226,78 @@ export interface DashboardSummary {
   delivery_summary?: DeliverySummary | null
 }
 
+export interface SavingsIndicator {
+  previous_month_grand_total: number
+  delta: number
+  saved: boolean
+  message: string
+}
+
+export interface MonthlyExpenseReport {
+  year: number
+  month: string
+  month_label: string
+  total_expenses: number
+  category_totals: CategoryTotal[]
+  milk_bill: number
+  newspaper_bill: number
+  servant_salary_total: number
+  grand_total: number
+  delivery_summary: DeliverySummary
+  savings: SavingsIndicator
+}
+
+export interface YearMonthBreakdown {
+  month: string
+  month_label: string
+  month_abbrev: string
+  expenses_total: number
+  milk_bill: number
+  newspaper_bill: number
+  servant_salary_total: number
+  grand_total: number
+  milk_delivered_days: number
+  newspaper_delivered_days: number
+  total_missed_deliveries: number
+}
+
+export interface YearlyExpenseReport {
+  year: number
+  total_expenses: number
+  category_totals: CategoryTotal[]
+  milk_bill: number
+  newspaper_bill: number
+  servant_salary_total: number
+  grand_total: number
+  months: YearMonthBreakdown[]
+}
+
+export interface YearlyBillSummary {
+  year: number
+  milk_cost: number
+  newspaper_cost: number
+  servant_salary: number
+  expenses_total: number
+  household_cost: number
+  milk_bill: number
+  newspaper_bill: number
+  servant_salary_total: number
+  grand_total: number
+}
+
+export interface YearlyGraphData {
+  year: number
+  months: string[]
+  monthly_expenses: number[]
+  milk_cost: number[]
+  newspaper_cost: number[]
+  servant_salary: number[]
+  grand_total: number[]
+  category_totals: CategoryTotal[]
+  milk_delivered_days: number[]
+  newspaper_delivered_days: number[]
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
